@@ -2,8 +2,8 @@
 // Ricardo Bittencourt 2017
 
 use std::env;
+use std::fmt;
 use std::fs::File;
-use std::io;
 use std::io::prelude::*;
 
 trait ByteSource {
@@ -27,11 +27,28 @@ impl ByteSource for VecSource {
     }
 }
 
+enum GzipError {
+    CantOpenFile,
+    CantReadFile
+}
+
+impl fmt::Display for GzipError {
+    fn fmt(&self, f : &mut fmt::Formatter) -> fmt::Result {
+        use GzipError::*;
+        let error = match *self {
+            CantOpenFile => "Can't open file",
+            CantReadFile => "Can't read from file"
+        };
+        write!(f, "{}", error)
+    }
+}
+
 impl VecSource {
-    fn from_file(name: &String) -> Result<Self, io::Error> {
+    fn from_file(name: &String) -> Result<Self, GzipError> {
+        use GzipError::*;
         let mut data: Vec<u8> = vec![];
-        let mut file = try!(File::open(name));
-        try!(file.read_to_end(&mut data));
+        let mut file = try!(File::open(name).or(Err(CantOpenFile)));
+        try!(file.read_to_end(&mut data).or(Err(CantReadFile)));
         let source = VecSource{ data: data, pos: 0 };
         Ok(source)
     }
