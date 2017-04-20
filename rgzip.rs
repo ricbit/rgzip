@@ -6,21 +6,35 @@ use std::fs::File;
 use std::io;
 use std::io::prelude::*;
 
-struct FileSource {
-    data : Vec<u8>
+trait ByteSource {
+    fn get_byte(&mut self) -> Option<u8>;
 }
 
-impl FileSource {
-    fn new(name: &String) -> Result<Self, io::Error> {
-        let mut source = FileSource{ data: vec![] };        
-        let mut file = try!(File::open(name));
-        try!(file.read_to_end(&mut source.data));
-        Ok(source)
+struct VecSource {
+    data : Vec<u8>,
+    pos: usize
+}
+
+impl ByteSource for VecSource {
+    fn get_byte(&mut self) -> Option<u8> {
+        let ans = if self.pos < self.data.len() {
+            Some(self.data[self.pos])
+        } else {
+            None
+        };
+        self.pos += 1;
+        ans
     }
 }
 
-trait ByteSource {
-    fn get_byte(&self) -> u8;
+impl VecSource {
+    fn from_file(name: &String) -> Result<Self, io::Error> {
+        let mut data: Vec<u8> = vec![];
+        let mut file = try!(File::open(name));
+        try!(file.read_to_end(&mut data));
+        let source = VecSource{ data: data, pos: 0 };
+        Ok(source)
+    }
 }
 
 fn main() {
@@ -32,7 +46,7 @@ fn main() {
       return;
   }
   println!("Reading {} ", args[1]);
-  let source = FileSource::new(&args[1]);
+  let source = VecSource::from_file(&args[1]);
   match source {
       Ok(_) => println!("Finished"),
       Err(error) => println!("Error: {}", error)
