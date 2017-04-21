@@ -1,0 +1,5 @@
+[package]
+
+name = "rgzip"
+version = "0.1.0"
+authors = [ "Ricardo Bittencourt <bluepenguin@gmail.com>" ]
