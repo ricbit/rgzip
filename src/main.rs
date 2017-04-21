@@ -1,6 +1,8 @@
 // Gzip decompressor in Rust
 // Ricardo Bittencourt 2017
 
+extern crate time;
+
 use std::env;
 use std::fmt;
 use std::fs::File;
@@ -11,7 +13,8 @@ enum GzipError {
     CantReadFile,
     NotAGzipFile,
     TruncatedFile,
-    NotDeflate
+    NotDeflate,
+    FEXTRANotSupported
 }
 
 impl fmt::Display for GzipError {
@@ -22,7 +25,8 @@ impl fmt::Display for GzipError {
             CantReadFile => "Can't read from file",
             NotAGzipFile => "Not a Gzip file",
             TruncatedFile => "Truncated file",
-            NotDeflate => "Not a deflate stream"
+            NotDeflate => "Not a deflate stream",
+            FEXTRANotSupported => "Header flag FEXTRA not supported yet",
         };
         write!(f, "{}", error)
     }
@@ -94,30 +98,72 @@ struct Gzip {
     FLG: u8,
     MTIME: u32,
     XFL: u8,
-    OS: u8
+    OS: u8,
+    original_name: Option<String>,
 }
 
 impl Gzip {
     fn decode(data : &mut ByteSource) -> Result<Self, GzipError> {
         use GzipHeaderFlags::*;
         let mut gzip = Gzip::default();
+
         gzip.ID1 = try!(data.get_u8());
         gzip.ID2 = try!(data.get_u8());
         if gzip.ID1 != 31 || gzip.ID2 != 139 {
             return Err(GzipError::NotAGzipFile);
         }
+
         gzip.CM = try!(data.get_u8());
         if gzip.CM != 8 {
             return Err(GzipError::NotDeflate);
         }
+
         gzip.FLG = try!(data.get_u8());
         println!("File type is {}", 
             if gzip.FLG & (FTEXT as u8) > 0 {"ASCII"} else {"Binary"});
+        if gzip.FLG & (FEXTRA as u8) > 0 {
+            return Err(GzipError::FEXTRANotSupported);
+        }
+
         gzip.MTIME = try!(data.get_u32());
         if gzip.MTIME > 0 {
-            //println("Date: {}
+            let timespec = time::Timespec::new(gzip.MTIME as i64, 0);
+            let tm = time::at_utc(timespec);
+            let display = time::strftime("%F %T", &tm);
+            if let Ok(date) = display {
+                println!("Date: {}", date);
+            }
         }
+
+        gzip.XFL = try!(data.get_u8());
+
+        gzip.OS = try!(data.get_u8());
+        println!("Operating System: {}", gzip.translate_os());
+
+        if gzip.FLG & (FNAME as u8) > 0 {
+        }
+
         return Ok(gzip);
+    }
+
+    fn translate_os(&self) -> &'static str {
+        match self.OS {
+			0 => "FAT filesystem (MS-DOS, OS/2, NT/Win32)",
+			1 => "Amiga",
+			2 => "VMS (or OpenVMS)",
+			3 => "Unix",
+			4 => "VM/CMS",
+			5 => "Atari TOS",
+			6 => "HPFS filesystem (OS/2, NT)",
+			7 => "Macintosh",
+			8 => "Z-System",
+			9 => "CP/M",
+			10 => "TOPS-20",
+			11 => "NTFS filesystem (NT)",
+			12 => "QDOS",
+			13 => "Acorn RISCOS",
+			_ => "unknown"
+        }
     }
 }
 
