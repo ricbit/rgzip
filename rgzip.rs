@@ -29,7 +29,22 @@ impl fmt::Display for GzipError {
 }
 
 trait ByteSource {
-    fn get_byte(&mut self) -> Result<u8, GzipError>;
+    fn get_u8(&mut self) -> Result<u8, GzipError>;
+
+    fn get_u16(&mut self) -> Result<u16, GzipError> {
+        let mut ans : u16 = 0;
+        for i in 0..2 {
+            ans |= (try!(self.get_u8()) as u16) << (8 * i);
+        }
+        Ok(ans)
+    }
+    fn get_u32(&mut self) -> Result<u32, GzipError> {
+        let mut ans : u32 = 0;
+        for i in 0..4 {
+            ans |= (try!(self.get_u8()) as u32) << (8 * i);
+        }
+        Ok(ans)
+    }
 }
 
 struct VecSource {
@@ -38,7 +53,7 @@ struct VecSource {
 }
 
 impl ByteSource for VecSource {
-    fn get_byte(&mut self) -> Result<u8, GzipError> {
+    fn get_u8(&mut self) -> Result<u8, GzipError> {
         let ans = if self.pos < self.data.len() {
             Ok(self.data[self.pos])
         } else {
@@ -52,12 +67,21 @@ impl ByteSource for VecSource {
 impl VecSource {
     fn from_file(name: &String) -> Result<Self, GzipError> {
         use GzipError::*;
-        let mut data: Vec<u8> = vec![];
+        let mut data = vec![];
         let mut file = try!(File::open(name).or(Err(CantOpenFile)));
         try!(file.read_to_end(&mut data).or(Err(CantReadFile)));
-        let source = VecSource{ data: data, pos: 0 };
-        Ok(source)
+        Ok(VecSource{ data: data, pos: 0 })
     }
+}
+
+#[allow(dead_code)]
+#[allow(non_snake_case)]
+enum GzipHeaderFlags {
+    FTEXT = 1,
+    FHCRC = 2,
+    FEXTRA = 4,
+    FNAME = 8,
+    FCOMMENT = 16
 }
 
 #[derive(Default)]
@@ -75,15 +99,23 @@ struct Gzip {
 
 impl Gzip {
     fn decode(data : &mut ByteSource) -> Result<Self, GzipError> {
+        use GzipHeaderFlags::*;
         let mut gzip = Gzip::default();
-        gzip.ID1 = try!(data.get_byte());
-        gzip.ID2 = try!(data.get_byte());
+        gzip.ID1 = try!(data.get_u8());
+        gzip.ID2 = try!(data.get_u8());
         if gzip.ID1 != 31 || gzip.ID2 != 139 {
             return Err(GzipError::NotAGzipFile);
         }
-        gzip.CM = try!(data.get_byte());
+        gzip.CM = try!(data.get_u8());
         if gzip.CM != 8 {
             return Err(GzipError::NotDeflate);
+        }
+        gzip.FLG = try!(data.get_u8());
+        println!("File type is {}", 
+            if gzip.FLG & (FTEXT as u8) > 0 {"ASCII"} else {"Binary"});
+        gzip.MTIME = try!(data.get_u32());
+        if gzip.MTIME > 0 {
+            //println("Date: {}
         }
         return Ok(gzip);
     }
