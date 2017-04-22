@@ -20,6 +20,7 @@ enum GzipError {
     FEXTRANotSupported,
     FHCRCNotSupported,
     FCOMMENTNotSupported,
+    ReservedFlagsNotSupported,
 }
 
 impl fmt::Display for GzipError {
@@ -34,6 +35,7 @@ impl fmt::Display for GzipError {
             FEXTRANotSupported => "Header flag FEXTRA not supported yet",
             FHCRCNotSupported => "Header flag FHCRC not supported yet",
             FCOMMENTNotSupported => "Header flag FCOMMENT not supported yet",
+            ReservedFlagsNotSupported => "Reserved header flags not supported",
         };
         write!(f, "{}", error)
     }
@@ -136,6 +138,9 @@ impl Gzip {
         }
         if gzip.FLG & (FCOMMENT as u8) > 0 {
             return Err(GzipError::FCOMMENTNotSupported);
+        }
+        if gzip.FLG >= 0x20 {
+            return Err(GzipError::ReservedFlagsNotSupported);
         }
 
         gzip.MTIME = try!(data.get_u32());
