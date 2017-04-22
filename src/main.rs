@@ -112,7 +112,7 @@ struct Gzip {
 }
 
 impl Gzip {
-    fn decode(data : &mut ByteSource) -> Result<Self, GzipError> {
+    fn decode<T: ByteSource>(data : &mut T) -> Result<Self, GzipError> {
         use GzipHeaderFlags::*;
         let mut gzip = Gzip::default();
 
