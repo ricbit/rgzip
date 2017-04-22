@@ -2,11 +2,14 @@
 // Ricardo Bittencourt 2017
 
 extern crate time;
+extern crate encoding;
 
 use std::env;
 use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
+use encoding::{Encoding, DecoderTrap};
+use encoding::all::ISO_8859_1;
 
 enum GzipError {
     CantOpenFile,
@@ -141,8 +144,20 @@ impl Gzip {
         println!("Operating System: {}", gzip.translate_os());
 
         if gzip.FLG & (FNAME as u8) > 0 {
+            let mut iso_8859_1 : Vec<u8> = vec![];
+            loop {
+                let c = try!(data.get_u8());
+                if c == 0 {
+                    break;
+                }
+                iso_8859_1.push(c);
+            }
+            let utf8 = ISO_8859_1.decode(&iso_8859_1, DecoderTrap::Strict);
+            if let Some(name) = utf8.ok() {
+                println!("decoded {}", name);
+                gzip.original_name = Some(name);
+            }
         }
-
         return Ok(gzip);
     }
 
