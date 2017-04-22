@@ -17,7 +17,9 @@ enum GzipError {
     NotAGzipFile,
     TruncatedFile,
     NotDeflate,
-    FEXTRANotSupported
+    FEXTRANotSupported,
+    FHCRCNotSupported,
+    FCOMMENTNotSupported,
 }
 
 impl fmt::Display for GzipError {
@@ -30,6 +32,8 @@ impl fmt::Display for GzipError {
             TruncatedFile => "Truncated file",
             NotDeflate => "Not a deflate stream",
             FEXTRANotSupported => "Header flag FEXTRA not supported yet",
+            FHCRCNotSupported => "Header flag FHCRC not supported yet",
+            FCOMMENTNotSupported => "Header flag FCOMMENT not supported yet",
         };
         write!(f, "{}", error)
     }
@@ -127,6 +131,12 @@ impl Gzip {
         if gzip.FLG & (FEXTRA as u8) > 0 {
             return Err(GzipError::FEXTRANotSupported);
         }
+        if gzip.FLG & (FHCRC as u8) > 0 {
+            return Err(GzipError::FHCRCNotSupported);
+        }
+        if gzip.FLG & (FCOMMENT as u8) > 0 {
+            return Err(GzipError::FCOMMENTNotSupported);
+        }
 
         gzip.MTIME = try!(data.get_u32());
         if gzip.MTIME > 0 {
@@ -154,7 +164,7 @@ impl Gzip {
             }
             let utf8 = ISO_8859_1.decode(&iso_8859_1, DecoderTrap::Strict);
             if let Some(name) = utf8.ok() {
-                println!("decoded {}", name);
+                println!("Original filename: {}", name);
                 gzip.original_name = Some(name);
             }
         }
