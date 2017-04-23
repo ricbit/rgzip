@@ -3,6 +3,8 @@
 
 use std::fmt;
 
+pub type GzipResult<T> = Result<T, GzipError>;
+
 pub enum GzipError {
     CantOpenFile,
     CantReadFile,
@@ -13,6 +15,7 @@ pub enum GzipError {
     FHCRCNotSupported,
     FCOMMENTNotSupported,
     ReservedFlagsNotSupported,
+    DeflateModeNotSupported,
 }
 
 impl fmt::Display for GzipError {
@@ -28,6 +31,7 @@ impl fmt::Display for GzipError {
             FHCRCNotSupported => "Header flag FHCRC not supported yet",
             FCOMMENTNotSupported => "Header flag FCOMMENT not supported yet",
             ReservedFlagsNotSupported => "Reserved header flags not supported",
+            DeflateModeNotSupported => "Deflate mode not supported yet",
         };
         write!(f, "{}", error)
     }

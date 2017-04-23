@@ -11,11 +11,11 @@ mod vecsource;
 use std::env;
 use encoding::{Encoding, DecoderTrap};
 use encoding::all::ISO_8859_1;
-use errors::GzipError;
+use errors::{GzipResult, GzipError};
 use bytesource::ByteSource;
 use vecsource::VecSource;
 
-type GzipResult<T> = Result<T, GzipError>;
+//type GzipGzipResult<T> = Result<T>;
 
 trait BitSource {
     fn get_bit(&mut self) -> GzipResult<u32>;
@@ -44,14 +44,28 @@ struct BitAdapter<'a, T: 'a + ByteSource> {
 }
 
 impl<'a, T: ByteSource> BitAdapter<'a, T> {
-    fn new(data: &mut T) {
-        let mut adapter = BitAdapter::<T>{ data: data, pos: 0, cur: 0 };
+    fn new(data: &'a mut T) -> Self {
+        BitAdapter::<T>{ data: data, pos: 0, cur: 0 }
     }
 }
 
 impl<'a, T:ByteSource> BitSource for BitAdapter<'a, T> {
     fn get_bit(&mut self) -> GzipResult<u32> {
-        unimplemented!();
+        if self.pos == 0 {
+            self.cur = try!(self.data.get_u8());
+            self.pos = 8;
+        }
+        let ans = self.cur & 1;
+        self.cur >>= 1;
+        self.pos -= 1;
+        Ok(ans as u32)
+    }
+}
+
+impl<'a, T:ByteSource> ByteSource for BitAdapter<'a, T> {
+    fn get_u8(&mut self) -> GzipResult<u8> {
+        self.pos = 0;
+        self.data.get_u8()
     }
 }
 
@@ -77,21 +91,50 @@ struct Gzip {
     original_name: Option<String>,
 }
 
+#[allow(non_snake_case)]
+struct BlockHeader {
+    BFINAL: u8,
+    BTYPE: u8,
+}
+
 impl Gzip {
-    fn decode<T: ByteSource>(data : &mut T) -> GzipResult<Self> {
+    fn decode<T>(data : &mut T) -> GzipResult<Self>
+        where T: ByteSource {
+
         let mut gzip = Gzip::default();
         try!(gzip.decode_header(data));
         try!(gzip.decode_deflate(data));
         Ok(gzip)
     }
 
-    fn decode_deflate<T: ByteSource>(&mut self, data: &mut T) 
-        -> GzipResult<()> {
-        
-        //let mut bits = 
-        unimplemented!();
+    fn decode_deflate<T>(&mut self, data: &mut T) -> GzipResult<()>
+        where T: ByteSource {
+
+        let mut bits = BitAdapter::new(data);
+        loop {
+            let header = BlockHeader{
+                BFINAL: try!(bits.get_bit()) as u8,
+                BTYPE: try!(bits.get_bits_rev(2)) as u8,
+            };
+            try!(match header.BTYPE {
+                0 => self.decode_stored(&mut bits),
+                _ => Err(GzipError::DeflateModeNotSupported)
+            });
+            if header.BFINAL > 0 {
+                break;
+            }
+        }
+        Ok(())
     }
-    fn decode_header<T: ByteSource>(&mut self, data: &mut T) -> GzipResult<()> {
+
+    fn decode_stored<T>(&mut self, data: &mut T) -> GzipResult<()>
+        where T: BitSource {
+
+        Ok(())
+    }
+
+    fn decode_header<T>(&mut self, data: &mut T) -> GzipResult<()>
+        where T: ByteSource {
         use GzipHeaderFlags::*;
 
         self.ID1 = try!(data.get_u8());
