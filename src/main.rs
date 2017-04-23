@@ -15,10 +15,12 @@ use errors::GzipError;
 use bytesource::ByteSource;
 use vecsource::VecSource;
 
-trait BitSource {
-    fn get_bit(&mut self) -> Result<u32, GzipError>;
+type GzipResult<T> = Result<T, GzipError>;
 
-    fn get_bits(&mut self, size: u8) -> Result<u32, GzipError> {
+trait BitSource {
+    fn get_bit(&mut self) -> GzipResult<u32>;
+
+    fn get_bits(&mut self, size: u8) -> GzipResult<u32> {
         let mut ans : u32 = 0;
         for _ in 0..size {
             ans = (ans << 1) | try!(self.get_bit());
@@ -26,7 +28,7 @@ trait BitSource {
         Ok(ans)
     }
 
-    fn get_bits_rev(&mut self, size: u8) -> Result<u32, GzipError> {
+    fn get_bits_rev(&mut self, size: u8) -> GzipResult<u32> {
         let mut ans : u32 = 0;
         for i in 0..size {
             ans |= try!(self.get_bit()) << (1 + i);
@@ -58,15 +60,13 @@ struct Gzip {
 }
 
 impl Gzip {
-    fn decode<T: ByteSource>(data : &mut T) -> Result<Self, GzipError> {
+    fn decode<T: ByteSource>(data : &mut T) -> GzipResult<Self> {
         let mut gzip = Gzip::default();
         try!(gzip.decode_header(data));
         Ok(gzip)
     }
 
-    fn decode_header<T: ByteSource>(&mut self, data : &mut T) 
-        -> Result<(), GzipError> {
-
+    fn decode_header<T: ByteSource>(&mut self, data: &mut T) -> GzipResult<()> {
         use GzipHeaderFlags::*;
 
         self.ID1 = try!(data.get_u8());
@@ -81,7 +81,7 @@ impl Gzip {
         }
 
         self.FLG = try!(data.get_u8());
-        println!("File type is {}", 
+        println!("File type is {}",
             if self.FLG & (FTEXT as u8) > 0 {"ASCII"} else {"Binary"});
         if self.FLG & (FEXTRA as u8) > 0 {
             return Err(GzipError::FEXTRANotSupported);
@@ -149,7 +149,7 @@ impl Gzip {
     }
 }
 
-fn read_gzip(name: &String) -> Result<Gzip, GzipError> {
+fn read_gzip(name: &String) -> GzipResult<Gzip> {
     let mut source = try!(VecSource::from_file(name));
     Gzip::decode(&mut source)
 }

@@ -2,11 +2,6 @@
 // Ricardo Bittencourt 2017
 
 use std::fmt;
-/*use std::env;
-use std::fs::File;
-use std::io::prelude::*;
-use encoding::{Encoding, DecoderTrap};
-use encoding::all::ISO_8859_1;*/
 
 pub enum GzipError {
     CantOpenFile,
