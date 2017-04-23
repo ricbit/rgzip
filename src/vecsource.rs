@@ -1,6 +1,6 @@
 use std::io::prelude::*;
 use std::fs::File;
-use errors::GzipError;
+use errors::{GzipResult, GzipError};
 use bytesource::ByteSource;
 
 pub struct VecSource {
@@ -9,7 +9,7 @@ pub struct VecSource {
 }
 
 impl ByteSource for VecSource {
-    fn get_u8(&mut self) -> Result<u8, GzipError> {
+    fn get_u8(&mut self) -> GzipResult<u8> {
         let ans = if self.pos < self.data.len() {
             Ok(self.data[self.pos])
         } else {
@@ -21,7 +21,7 @@ impl ByteSource for VecSource {
 }
 
 impl VecSource {
-    pub fn from_file(name: &String) -> Result<Self, GzipError> {
+    pub fn from_file(name: &String) -> GzipResult<Self> {
         use GzipError::*;
         let mut data = vec![];
         let mut file = try!(File::open(name).or(Err(CantOpenFile)));

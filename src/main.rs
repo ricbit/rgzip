@@ -6,7 +6,9 @@ extern crate encoding;
 
 mod errors;
 mod bytesource;
+mod bitsource;
 mod vecsource;
+mod bitadapter;
 
 use std::env;
 use encoding::{Encoding, DecoderTrap};
@@ -14,60 +16,8 @@ use encoding::all::ISO_8859_1;
 use errors::{GzipResult, GzipError};
 use bytesource::ByteSource;
 use vecsource::VecSource;
-
-//type GzipGzipResult<T> = Result<T>;
-
-trait BitSource {
-    fn get_bit(&mut self) -> GzipResult<u32>;
-
-    fn get_bits(&mut self, size: u8) -> GzipResult<u32> {
-        let mut ans : u32 = 0;
-        for _ in 0..size {
-            ans = (ans << 1) | try!(self.get_bit());
-        }
-        Ok(ans)
-    }
-
-    fn get_bits_rev(&mut self, size: u8) -> GzipResult<u32> {
-        let mut ans : u32 = 0;
-        for i in 0..size {
-            ans |= try!(self.get_bit()) << (1 + i);
-        }
-        Ok(ans)
-    }
-}
-
-struct BitAdapter<'a, T: 'a + ByteSource> {
-    data: &'a mut T,
-    pos: u8,
-    cur: u8
-}
-
-impl<'a, T: ByteSource> BitAdapter<'a, T> {
-    fn new(data: &'a mut T) -> Self {
-        BitAdapter::<T>{ data: data, pos: 0, cur: 0 }
-    }
-}
-
-impl<'a, T:ByteSource> BitSource for BitAdapter<'a, T> {
-    fn get_bit(&mut self) -> GzipResult<u32> {
-        if self.pos == 0 {
-            self.cur = try!(self.data.get_u8());
-            self.pos = 8;
-        }
-        let ans = self.cur & 1;
-        self.cur >>= 1;
-        self.pos -= 1;
-        Ok(ans as u32)
-    }
-}
-
-impl<'a, T:ByteSource> ByteSource for BitAdapter<'a, T> {
-    fn get_u8(&mut self) -> GzipResult<u8> {
-        self.pos = 0;
-        self.data.get_u8()
-    }
-}
+use bitsource::BitSource;
+use bitadapter::BitAdapter;
 
 #[allow(non_snake_case)]
 enum GzipHeaderFlags {
