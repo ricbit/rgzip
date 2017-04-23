@@ -5,6 +5,7 @@ extern crate time;
 extern crate encoding;
 
 mod errors;
+mod bytesource;
 
 use std::env;
 use std::fs::File;
@@ -12,27 +13,7 @@ use std::io::prelude::*;
 use encoding::{Encoding, DecoderTrap};
 use encoding::all::ISO_8859_1;
 use errors::GzipError;
-
-
-trait ByteSource {
-    fn get_u8(&mut self) -> Result<u8, GzipError>;
-
-    fn get_variable(&mut self, size: u8) -> Result<u32, GzipError> {
-        let mut ans : u32 = 0;
-        for i in 0..size {
-            ans |= (try!(self.get_u8()) as u32) << (8 * i);
-        }
-        Ok(ans)
-    }
-
-    fn get_u16(&mut self) -> Result<u16, GzipError> {
-        self.get_variable(2).map(|x| x as u16)
-    }
-
-    fn get_u32(&mut self) -> Result<u32, GzipError> {
-        self.get_variable(4)
-    }
-}
+use bytesource::ByteSource;
 
 struct VecSource {
     data : Vec<u8>,
@@ -61,7 +42,6 @@ impl VecSource {
     }
 }
 
-#[allow(dead_code)]
 #[allow(non_snake_case)]
 enum GzipHeaderFlags {
     FTEXT = 1,
@@ -72,7 +52,6 @@ enum GzipHeaderFlags {
 }
 
 #[derive(Default)]
-#[allow(dead_code)]
 #[allow(non_snake_case)]
 struct Gzip {
     ID1: u8,
@@ -121,8 +100,7 @@ impl Gzip {
         if gzip.MTIME > 0 {
             let timespec = time::Timespec::new(gzip.MTIME as i64, 0);
             let tm = time::at_utc(timespec);
-            let display = time::strftime("%F %T", &tm);
-            if let Ok(date) = display {
+            if let Ok(date) = time::strftime("%F %T", &tm) {
                 println!("Date: {}", date);
             }
         }
