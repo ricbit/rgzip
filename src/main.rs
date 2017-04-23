@@ -25,6 +25,14 @@ trait BitSource {
         }
         Ok(ans)
     }
+
+    fn get_bits_rev(&mut self, size: u8) -> Result<u32, GzipError> {
+        let mut ans : u32 = 0;
+        for i in 0..size {
+            ans |= try!(self.get_bit()) << (1 + i);
+        }
+        Ok(ans)
+    }
 }
 
 #[allow(non_snake_case)]
@@ -51,51 +59,58 @@ struct Gzip {
 
 impl Gzip {
     fn decode<T: ByteSource>(data : &mut T) -> Result<Self, GzipError> {
-        use GzipHeaderFlags::*;
         let mut gzip = Gzip::default();
+        try!(gzip.decode_header(data));
+        Ok(gzip)
+    }
 
-        gzip.ID1 = try!(data.get_u8());
-        gzip.ID2 = try!(data.get_u8());
-        if gzip.ID1 != 31 || gzip.ID2 != 139 {
+    fn decode_header<T: ByteSource>(&mut self, data : &mut T) 
+        -> Result<(), GzipError> {
+
+        use GzipHeaderFlags::*;
+
+        self.ID1 = try!(data.get_u8());
+        self.ID2 = try!(data.get_u8());
+        if self.ID1 != 31 || self.ID2 != 139 {
             return Err(GzipError::NotAGzipFile);
         }
 
-        gzip.CM = try!(data.get_u8());
-        if gzip.CM != 8 {
+        self.CM = try!(data.get_u8());
+        if self.CM != 8 {
             return Err(GzipError::NotDeflate);
         }
 
-        gzip.FLG = try!(data.get_u8());
+        self.FLG = try!(data.get_u8());
         println!("File type is {}", 
-            if gzip.FLG & (FTEXT as u8) > 0 {"ASCII"} else {"Binary"});
-        if gzip.FLG & (FEXTRA as u8) > 0 {
+            if self.FLG & (FTEXT as u8) > 0 {"ASCII"} else {"Binary"});
+        if self.FLG & (FEXTRA as u8) > 0 {
             return Err(GzipError::FEXTRANotSupported);
         }
-        if gzip.FLG & (FHCRC as u8) > 0 {
+        if self.FLG & (FHCRC as u8) > 0 {
             return Err(GzipError::FHCRCNotSupported);
         }
-        if gzip.FLG & (FCOMMENT as u8) > 0 {
+        if self.FLG & (FCOMMENT as u8) > 0 {
             return Err(GzipError::FCOMMENTNotSupported);
         }
-        if gzip.FLG >= 0x20 {
+        if self.FLG >= 0x20 {
             return Err(GzipError::ReservedFlagsNotSupported);
         }
 
-        gzip.MTIME = try!(data.get_u32());
-        if gzip.MTIME > 0 {
-            let timespec = time::Timespec::new(gzip.MTIME as i64, 0);
+        self.MTIME = try!(data.get_u32());
+        if self.MTIME > 0 {
+            let timespec = time::Timespec::new(self.MTIME as i64, 0);
             let tm = time::at_utc(timespec);
             if let Ok(date) = time::strftime("%F %T", &tm) {
                 println!("Date: {}", date);
             }
         }
 
-        gzip.XFL = try!(data.get_u8());
+        self.XFL = try!(data.get_u8());
 
-        gzip.OS = try!(data.get_u8());
-        println!("Operating System: {}", gzip.translate_os());
+        self.OS = try!(data.get_u8());
+        println!("Operating System: {}", self.translate_os());
 
-        if gzip.FLG & (FNAME as u8) > 0 {
+        if self.FLG & (FNAME as u8) > 0 {
             let mut iso_8859_1 : Vec<u8> = vec![];
             loop {
                 let c = try!(data.get_u8());
@@ -107,10 +122,10 @@ impl Gzip {
             let utf8 = ISO_8859_1.decode(&iso_8859_1, DecoderTrap::Strict);
             if let Some(name) = utf8.ok() {
                 println!("Original filename: {}", name);
-                gzip.original_name = Some(name);
+                self.original_name = Some(name);
             }
         }
-        return Ok(gzip);
+        return Ok(());
     }
 
     fn translate_os(&self) -> &'static str {
