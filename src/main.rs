@@ -15,6 +15,18 @@ use errors::GzipError;
 use bytesource::ByteSource;
 use vecsource::VecSource;
 
+trait BitSource {
+    fn get_bit(&mut self) -> Result<u32, GzipError>;
+
+    fn get_bits(&mut self, size: u8) -> Result<u32, GzipError> {
+        let mut ans : u32 = 0;
+        for _ in 0..size {
+            ans = (ans << 1) | try!(self.get_bit());
+        }
+        Ok(ans)
+    }
+}
+
 #[allow(non_snake_case)]
 enum GzipHeaderFlags {
     FTEXT = 1,
