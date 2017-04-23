@@ -37,6 +37,24 @@ trait BitSource {
     }
 }
 
+struct BitAdapter<'a, T: 'a + ByteSource> {
+    data: &'a mut T,
+    pos: u8,
+    cur: u8
+}
+
+impl<'a, T: ByteSource> BitAdapter<'a, T> {
+    fn new(data: &mut T) {
+        let mut adapter = BitAdapter::<T>{ data: data, pos: 0, cur: 0 };
+    }
+}
+
+impl<'a, T:ByteSource> BitSource for BitAdapter<'a, T> {
+    fn get_bit(&mut self) -> GzipResult<u32> {
+        unimplemented!();
+    }
+}
+
 #[allow(non_snake_case)]
 enum GzipHeaderFlags {
     FTEXT = 1,
@@ -63,9 +81,16 @@ impl Gzip {
     fn decode<T: ByteSource>(data : &mut T) -> GzipResult<Self> {
         let mut gzip = Gzip::default();
         try!(gzip.decode_header(data));
+        try!(gzip.decode_deflate(data));
         Ok(gzip)
     }
 
+    fn decode_deflate<T: ByteSource>(&mut self, data: &mut T) 
+        -> GzipResult<()> {
+        
+        //let mut bits = 
+        unimplemented!();
+    }
     fn decode_header<T: ByteSource>(&mut self, data: &mut T) -> GzipResult<()> {
         use GzipHeaderFlags::*;
 
