@@ -58,8 +58,8 @@ impl Gzip {
         where T: ByteSource {
 
         let mut gzip = Gzip::default();
-        try!(gzip.decode_header(data));
-        try!(gzip.decode_deflate(data));
+        gzip.decode_header(data)?;
+        gzip.decode_deflate(data)?;
         Ok(gzip)
     }
 
@@ -69,8 +69,8 @@ impl Gzip {
         let mut bits = BitAdapter::new(data);
         for i in 1.. {
             let header = BlockHeader{
-                BFINAL: try!(bits.get_bit()) as u8,
-                BTYPE: try!(bits.get_bits_rev(2)) as u8,
+                BFINAL: bits.get_bit()? as u8,
+                BTYPE: bits.get_bits_rev(2)? as u8,
             };
             println!("Block {} is final: {}", i, header.BFINAL > 0);
             try!(match header.BTYPE {
@@ -90,10 +90,9 @@ impl Gzip {
         where T: BitSource {
         
         let header = BlockStoredHeader{ 
-            LEN: try!(data.get_u16()),
-            NLEN: try!(data.get_u16())
+            LEN: data.get_u16()?,
+            NLEN: data.get_u16()?
         };
-        println!("Stored block, len = {},{}", header.LEN, header.NLEN);
         if header.LEN ^ header.NLEN != 65535 {
             return Err(GzipError::StoredHeaderFailure);
         }
@@ -105,18 +104,18 @@ impl Gzip {
         where T: ByteSource {
         use GzipHeaderFlags::*;
 
-        self.ID1 = try!(data.get_u8());
-        self.ID2 = try!(data.get_u8());
+        self.ID1 = data.get_u8()?;
+        self.ID2 = data.get_u8()?;
         if self.ID1 != 31 || self.ID2 != 139 {
             return Err(GzipError::NotAGzipFile);
         }
 
-        self.CM = try!(data.get_u8());
+        self.CM = data.get_u8()?;
         if self.CM != 8 {
             return Err(GzipError::NotDeflate);
         }
 
-        self.FLG = try!(data.get_u8());
+        self.FLG = data.get_u8()?;
         println!("File type is {}",
             if self.FLG & (FTEXT as u8) > 0 {"ASCII"} else {"Binary"});
         if self.FLG & (FEXTRA as u8) > 0 {
@@ -132,7 +131,7 @@ impl Gzip {
             return Err(GzipError::ReservedFlagsNotSupported);
         }
 
-        self.MTIME = try!(data.get_u32());
+        self.MTIME = data.get_u32()?;
         if self.MTIME > 0 {
             let timespec = time::Timespec::new(self.MTIME as i64, 0);
             let tm = time::at_utc(timespec);
@@ -141,22 +140,22 @@ impl Gzip {
             }
         }
 
-        self.XFL = try!(data.get_u8());
+        self.XFL = data.get_u8()?;
 
-        self.OS = try!(data.get_u8());
+        self.OS = data.get_u8()?;
         println!("Operating System: {}", self.translate_os());
 
         if self.FLG & (FNAME as u8) > 0 {
             let mut iso_8859_1 : Vec<u8> = vec![];
             loop {
-                let c = try!(data.get_u8());
+                let c = data.get_u8()?;
                 if c == 0 {
                     break;
                 }
                 iso_8859_1.push(c);
             }
             let utf8 = ISO_8859_1.decode(&iso_8859_1, DecoderTrap::Strict);
-            if let Some(name) = utf8.ok() {
+            if let Ok(name) = utf8 {
                 println!("Original filename: {}", name);
                 self.original_name = Some(name);
             }
@@ -186,7 +185,7 @@ impl Gzip {
 }
 
 fn read_gzip(name: &String) -> GzipResult<Gzip> {
-    let mut source = try!(VecSource::from_file(name));
+    let mut source = VecSource::from_file(name)?;
     Gzip::decode(&mut source)
 }
 
