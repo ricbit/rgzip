@@ -15,7 +15,7 @@ pub trait BitSource : ByteSource {
     fn get_bits_rev(&mut self, size: u8) -> GzipResult<u32> {
         let mut ans : u32 = 0;
         for i in 0..size {
-            ans |= try!(self.get_bit()) << (1 + i);
+            ans |= try!(self.get_bit()) << i;
         }
         Ok(ans)
     }
