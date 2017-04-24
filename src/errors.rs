@@ -15,7 +15,10 @@ pub enum GzipError {
     FHCRCNotSupported,
     FCOMMENTNotSupported,
     ReservedFlagsNotSupported,
+    StaticHuffmanNotSupported,
+    DynamicHuffmanNotSupported,
     DeflateModeNotSupported,
+    StoredHeaderFailure,
 }
 
 impl fmt::Display for GzipError {
@@ -31,7 +34,10 @@ impl fmt::Display for GzipError {
             FHCRCNotSupported => "Header flag FHCRC not supported yet",
             FCOMMENTNotSupported => "Header flag FCOMMENT not supported yet",
             ReservedFlagsNotSupported => "Reserved header flags not supported",
-            DeflateModeNotSupported => "Deflate mode not supported yet",
+            StaticHuffmanNotSupported => "Static Huffman not supported yet",
+            DynamicHuffmanNotSupported => "Dynamic Huffman not supported yet",
+            DeflateModeNotSupported => "Reserved deflate mode not defined yet",
+            StoredHeaderFailure => "Error in stored block header",
         };
         write!(f, "{}", error)
     }

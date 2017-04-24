@@ -47,6 +47,12 @@ struct BlockHeader {
     BTYPE: u8,
 }
 
+#[allow(non_snake_case)]
+struct BlockStoredHeader {
+    LEN: u16,
+    NLEN: u16
+}
+
 impl Gzip {
     fn decode<T>(data : &mut T) -> GzipResult<Self>
         where T: ByteSource {
@@ -61,14 +67,17 @@ impl Gzip {
         where T: ByteSource {
 
         let mut bits = BitAdapter::new(data);
-        loop {
+        for i in 1.. {
             let header = BlockHeader{
                 BFINAL: try!(bits.get_bit()) as u8,
                 BTYPE: try!(bits.get_bits_rev(2)) as u8,
             };
+            println!("Block {} is final: {}", i, header.BFINAL > 0);
             try!(match header.BTYPE {
                 0 => self.decode_stored(&mut bits),
-                _ => Err(GzipError::DeflateModeNotSupported)
+                1 => Err(GzipError::StaticHuffmanNotSupported),
+                2 => Err(GzipError::DynamicHuffmanNotSupported),
+                _ => Err(GzipError::DeflateModeNotSupported),
             });
             if header.BFINAL > 0 {
                 break;
@@ -79,7 +88,16 @@ impl Gzip {
 
     fn decode_stored<T>(&mut self, data: &mut T) -> GzipResult<()>
         where T: BitSource {
-
+        
+        let header = BlockStoredHeader{ 
+            LEN: try!(data.get_u16()),
+            NLEN: try!(data.get_u16())
+        };
+        println!("Stored block, len = {},{}", header.LEN, header.NLEN);
+        if header.LEN ^ header.NLEN != 65535 {
+            return Err(GzipError::StoredHeaderFailure);
+        }
+        println!("Stored block, len = {}", header.LEN);
         Ok(())
     }
 
