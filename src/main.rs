@@ -6,6 +6,7 @@ extern crate encoding;
 
 mod errors;
 mod sources;
+mod sinks;
 
 use std::env;
 use encoding::{Encoding, DecoderTrap};
@@ -15,9 +16,9 @@ use sources::bytesource::ByteSource;
 use sources::vecsource::VecSource;
 use sources::bitsource::BitSource;
 use sources::bitadapter::BitAdapter;
+use sinks::bytesink::ByteSink;
+use sinks::filesink::FileSink;
 
-use std::fs::File;
-use std::io::Write;
 
 #[allow(non_snake_case)]
 enum GzipHeaderFlags {
@@ -51,43 +52,6 @@ struct BlockHeader {
 struct StoredHeader {
     LEN: u16,
     NLEN: u16
-}
-
-trait ByteSink {
-    fn put_u8(&mut self, data: u8) -> GzipResult<()>;
-
-    fn put_data(&mut self, data: &Vec<u8>) -> GzipResult<()> {
-        for d in data {
-            self.put_u8(*d)?;
-        }
-        Ok(())
-    }
-}
-
-struct FileSink {
-    file: File,
-}
-
-impl FileSink {
-    fn new(name: &String) -> GzipResult<Self> {
-        let mut file = File::create(name).or(Err(GzipError::CantCreateFile))?;
-        Ok(FileSink{file : file})
-    }
-}
-
-impl ByteSink for FileSink {
-    fn put_u8(&mut self, data: u8) -> GzipResult<()> {
-        match self.file.write(&[data]) {
-            Ok(0) | Err(_) => Err(GzipError::CantWriteFile),
-            _ => Ok(())
-        }
-    }
-}
-
-impl Drop for FileSink {
-    fn drop(&mut self) {
-        self.file.flush();
-    }
 }
 
 impl Gzip {
