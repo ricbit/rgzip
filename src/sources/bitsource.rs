@@ -1,5 +1,5 @@
 use errors::GzipResult;
-use bytesource::ByteSource;
+use sources::bytesource::ByteSource;
 
 pub trait BitSource : ByteSource {
     fn get_bit(&mut self) -> GzipResult<u32>;

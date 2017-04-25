@@ -5,19 +5,16 @@ extern crate time;
 extern crate encoding;
 
 mod errors;
-mod bytesource;
-mod bitsource;
-mod vecsource;
-mod bitadapter;
+mod sources;
 
 use std::env;
 use encoding::{Encoding, DecoderTrap};
 use encoding::all::ISO_8859_1;
 use errors::{GzipResult, GzipError};
-use bytesource::ByteSource;
-use vecsource::VecSource;
-use bitsource::BitSource;
-use bitadapter::BitAdapter;
+use sources::bytesource::ByteSource;
+use sources::vecsource::VecSource;
+use sources::bitsource::BitSource;
+use sources::bitadapter::BitAdapter;
 
 use std::fs::File;
 use std::io::Write;

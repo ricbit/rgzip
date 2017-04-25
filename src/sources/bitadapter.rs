@@ -1,6 +1,6 @@
 use errors::GzipResult;
-use bytesource::ByteSource;
-use bitsource::BitSource;
+use sources::bytesource::ByteSource;
+use sources::bitsource::BitSource;
 
 pub struct BitAdapter<'a, T: 'a + ByteSource> {
     data: &'a mut T,

@@ -1,7 +1,7 @@
 use std::io::prelude::*;
 use std::fs::File;
 use errors::{GzipResult, GzipError};
-use bytesource::ByteSource;
+use sources::bytesource::ByteSource;
 
 pub struct VecSource {
     data : Vec<u8>,
