@@ -19,7 +19,6 @@ use sources::bitadapter::BitAdapter;
 use sinks::bytesink::ByteSink;
 use sinks::filesink::FileSink;
 
-
 #[allow(non_snake_case)]
 enum GzipHeaderFlags {
     FTEXT = 1,
@@ -31,7 +30,7 @@ enum GzipHeaderFlags {
 
 #[derive(Default)]
 #[allow(non_snake_case)]
-struct Gzip {
+struct GzipHeader {
     ID1: u8,
     ID2: u8,
     CM: u8,
@@ -54,11 +53,11 @@ struct StoredHeader {
     NLEN: u16
 }
 
-impl Gzip {
+impl GzipHeader {
     fn decode<T, U>(data : &mut T, output: &mut U) -> GzipResult<Self>
         where T: ByteSource, U: ByteSink {
 
-        let mut gzip = Gzip::default();
+        let mut gzip = GzipHeader::default();
         gzip.decode_header(data)?;
         gzip.decode_deflate(data, output)?;
         Ok(gzip)
@@ -191,10 +190,10 @@ impl Gzip {
     }
 }
 
-fn read_gzip(input: &String, output: &String) -> GzipResult<Gzip> {
+fn read_gzip(input: &String, output: &String) -> GzipResult<GzipHeader> {
     let mut source = VecSource::from_file(input)?;
     let mut sink = FileSink::new(output)?;
-    Gzip::decode(&mut source, &mut sink)
+    GzipHeader::decode(&mut source, &mut sink)
 }
 
 fn main() {
