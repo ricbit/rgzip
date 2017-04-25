@@ -8,6 +8,8 @@ pub type GzipResult<T> = Result<T, GzipError>;
 pub enum GzipError {
     CantOpenFile,
     CantReadFile,
+    CantCreateFile,
+    CantWriteFile,
     NotAGzipFile,
     TruncatedFile,
     NotDeflate,
@@ -27,6 +29,8 @@ impl fmt::Display for GzipError {
         let error = match *self {
             CantOpenFile => "Can't open file",
             CantReadFile => "Can't read from file",
+            CantCreateFile => "Can't create file",
+            CantWriteFile => "Can't write to file",
             NotAGzipFile => "Not a Gzip file",
             TruncatedFile => "Truncated file",
             NotDeflate => "Not a deflate stream",

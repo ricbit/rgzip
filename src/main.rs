@@ -19,6 +19,9 @@ use vecsource::VecSource;
 use bitsource::BitSource;
 use bitadapter::BitAdapter;
 
+use std::fs::File;
+use std::io::Write;
+
 #[allow(non_snake_case)]
 enum GzipHeaderFlags {
     FTEXT = 1,
@@ -48,23 +51,61 @@ struct BlockHeader {
 }
 
 #[allow(non_snake_case)]
-struct BlockStoredHeader {
+struct StoredHeader {
     LEN: u16,
     NLEN: u16
 }
 
+trait ByteSink {
+    fn put_u8(&mut self, data: u8) -> GzipResult<()>;
+
+    fn put_data(&mut self, data: &Vec<u8>) -> GzipResult<()> {
+        for d in data {
+            self.put_u8(*d)?;
+        }
+        Ok(())
+    }
+}
+
+struct FileSink {
+    file: File,
+}
+
+impl FileSink {
+    fn new(name: &String) -> GzipResult<Self> {
+        let mut file = File::create(name).or(Err(GzipError::CantCreateFile))?;
+        Ok(FileSink{file : file})
+    }
+}
+
+impl ByteSink for FileSink {
+    fn put_u8(&mut self, data: u8) -> GzipResult<()> {
+        match self.file.write(&[data]) {
+            Ok(0) | Err(_) => Err(GzipError::CantWriteFile),
+            _ => Ok(())
+        }
+    }
+}
+
+impl Drop for FileSink {
+    fn drop(&mut self) {
+        self.file.flush();
+    }
+}
+
 impl Gzip {
-    fn decode<T>(data : &mut T) -> GzipResult<Self>
-        where T: ByteSource {
+    fn decode<T, U>(data : &mut T, output: &mut U) -> GzipResult<Self>
+        where T: ByteSource, U: ByteSink {
 
         let mut gzip = Gzip::default();
         gzip.decode_header(data)?;
-        gzip.decode_deflate(data)?;
+        gzip.decode_deflate(data, output)?;
         Ok(gzip)
     }
 
-    fn decode_deflate<T>(&mut self, data: &mut T) -> GzipResult<()>
-        where T: ByteSource {
+    fn decode_deflate<T, U>(&mut self, data: &mut T, output: &mut U)
+        -> GzipResult<()>
+        where T: ByteSource, U: ByteSink {
 
         let mut bits = BitAdapter::new(data);
         for i in 1.. {
@@ -74,7 +115,7 @@ impl Gzip {
             };
             println!("Block {} is final: {}", i, header.BFINAL > 0);
             try!(match header.BTYPE {
-                0 => self.decode_stored(&mut bits),
+                0 => self.decode_stored(&mut bits, output),
                 1 => Err(GzipError::StaticHuffmanNotSupported),
                 2 => Err(GzipError::DynamicHuffmanNotSupported),
                 _ => Err(GzipError::DeflateModeNotSupported),
@@ -86,15 +127,20 @@ impl Gzip {
         Ok(())
     }
 
-    fn decode_stored<T>(&mut self, data: &mut T) -> GzipResult<()>
-        where T: BitSource {
-        
-        let header = BlockStoredHeader{ 
+    fn decode_stored<T, U>(&mut self, data: &mut T, output: &mut U)
+        -> GzipResult<()>
+        where T: BitSource, U: ByteSink {
+
+        let header = StoredHeader{
             LEN: data.get_u16()?,
             NLEN: data.get_u16()?
         };
         if header.LEN ^ header.NLEN != 65535 {
             return Err(GzipError::StoredHeaderFailure);
+        }
+        for _ in 0..header.LEN {
+            let byte = data.get_u8()?;
+            output.put_u8(byte)?;
         }
         println!("Stored block, len = {}", header.LEN);
         Ok(())
@@ -184,21 +230,22 @@ impl Gzip {
     }
 }
 
-fn read_gzip(name: &String) -> GzipResult<Gzip> {
-    let mut source = VecSource::from_file(name)?;
-    Gzip::decode(&mut source)
+fn read_gzip(input: &String, output: &String) -> GzipResult<Gzip> {
+    let mut source = VecSource::from_file(input)?;
+    let mut sink = FileSink::new(output)?;
+    Gzip::decode(&mut source, &mut sink)
 }
 
 fn main() {
     println!("RGzip 0.1, by Ricardo Bittencourt 2017");
 
     let args : Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        println!("Usage: rgzip file.gz");
+    if args.len() < 3 {
+        println!("Usage: rgzip input_file output_file");
         return;
     }
-    println!("Reading {} ", args[1]);
-    match read_gzip(&args[1]) {
+    println!("Reading from {}, writing to {}", args[1], args[2]);
+    match read_gzip(&args[1], &args[2]) {
         Ok(_) => println!("Finished"),
         Err(error) => println!("Error: {}", error)
     }
