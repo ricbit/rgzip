@@ -7,6 +7,7 @@ extern crate encoding;
 mod errors;
 mod sources;
 mod sinks;
+mod buffers;
 mod blockstored;
 mod blockfixed;
 
@@ -18,55 +19,12 @@ use sources::bytesource::ByteSource;
 use sources::vecsource::VecSource;
 use sources::bitsource::BitSource;
 use sources::bitadapter::BitAdapter;
-use sinks::bytesink::ByteSink;
 use sinks::filesink::FileSink;
 use blockstored::BlockStored;
 use blockfixed::BlockFixed;
+use buffers::outputbuffer::OutputBuffer;
+use buffers::inmemory::InMemoryBuffer;
 
-pub trait OutputBuffer {
-    fn put_u8(&mut self, data: u8) -> GzipResult<()>;
-
-    fn put_data(&mut self, data: &mut Vec<u8>) -> GzipResult<()>;
-
-    fn copy_window(&mut self, distance: u32, length: u32) -> GzipResult<()>;
-}
-
-struct InMemoryBuffer<'a> {
-    buffer: Vec<u8>,
-    output: &'a mut ByteSink
-}
-
-impl<'a> InMemoryBuffer<'a> {
-    fn new(output: &'a mut ByteSink) -> Self {
-        InMemoryBuffer{ buffer: vec![], output: output }
-    }
-}
-
-impl<'a> OutputBuffer for InMemoryBuffer<'a> {
-    fn put_u8(&mut self, data: u8) -> GzipResult<()> {
-        self.buffer.push(data);
-        self.output.put_u8(data)
-    }
-
-    fn put_data(&mut self, data: &mut Vec<u8>) -> GzipResult<()> {
-        self.buffer.append(data);
-        self.output.put_data(data)
-    }
-
-    fn copy_window(&mut self, distance: u32, length: u32) -> GzipResult<()> {
-        if distance as usize > self.buffer.len() {
-            return Err(GzipError::InvalidDeflateStream);
-        }
-        let index : usize = self.buffer.len() - distance as usize;
-        for i in 0..length {
-            let data = self.buffer[index + i as usize];
-            println!("window char {}", data as u8 as char);
-            self.output.put_u8(data)?;
-            self.buffer.push(data);
-        }
-        Ok(())
-    }
-}
 
 #[allow(non_snake_case)]
 enum GzipHeaderFlags {
