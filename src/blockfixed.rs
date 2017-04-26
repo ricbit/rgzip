@@ -1,8 +1,8 @@
 use errors::{GzipResult, GzipError};
 use sources::bitsource::BitSource;
-use sinks::bytesink::ByteSink;
+use OutputBuffer;
 
-pub struct BlockFixed<'a, 'b, T: 'a + BitSource, U: 'b + ByteSink> {
+pub struct BlockFixed<'a, 'b, T: 'a + BitSource, U: 'b + OutputBuffer> {
     input: &'a mut T,
     output: &'b mut U,
 }
@@ -65,7 +65,7 @@ fn ensure_distances_are_consistent() {
     }
 }
 
-impl<'a, 'b, T: BitSource, U: ByteSink> BlockFixed<'a, 'b, T, U> {
+impl<'a, 'b, T: BitSource, U: OutputBuffer > BlockFixed<'a, 'b, T, U> {
     pub fn new(input: &'a mut T, output: &'b mut U) -> Self {
         BlockFixed{ input: input, output: output }
     }
@@ -82,6 +82,7 @@ impl<'a, 'b, T: BitSource, U: ByteSink> BlockFixed<'a, 'b, T, U> {
                 256 => return Ok(()),
                 257...285 =>  {
                     let (length, distance) = self.get_window(code)?;
+                    self.output.copy_window(distance, length)?;
                     println!("window {} {}", length, distance);
                     Ok(())
                 },
@@ -95,7 +96,7 @@ impl<'a, 'b, T: BitSource, U: ByteSink> BlockFixed<'a, 'b, T, U> {
         let index = length_base as usize - 257;
         let length = 
             LENGTH_START[index] + 
-            self.input.get_bits(LENGTH_EXTRA[index])?;
+            self.input.get_bits_rev(LENGTH_EXTRA[index])?;
         let distance_base = self.input.get_bits(5)?;
         if distance_base >= 30 {
             return Err(GzipError::InvalidDeflateStream);
@@ -103,7 +104,7 @@ impl<'a, 'b, T: BitSource, U: ByteSink> BlockFixed<'a, 'b, T, U> {
         let index = distance_base as usize;
         let distance = 
             DISTANCE_START[index] + 
-            self.input.get_bits(DISTANCE_EXTRA[index])?;
+            self.input.get_bits_rev(DISTANCE_EXTRA[index])?;
         Ok((length, distance))
     }
 

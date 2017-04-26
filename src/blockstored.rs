@@ -1,6 +1,6 @@
 use errors::{GzipResult, GzipError};
 use sources::bitsource::BitSource;
-use sinks::bytesink::ByteSink;
+use OutputBuffer;
 
 #[allow(non_snake_case)]
 struct StoredHeader {
@@ -8,12 +8,12 @@ struct StoredHeader {
     NLEN: u16
 }
 
-pub struct BlockStored<'a, 'b, T: 'a + BitSource, U: 'b + ByteSink> {
+pub struct BlockStored<'a, 'b, T: 'a + BitSource, U: 'b + OutputBuffer> {
     input: &'a mut T,
     output: &'b mut U,
 }
 
-impl<'a, 'b, T: BitSource, U: ByteSink> BlockStored<'a, 'b, T, U> {
+impl<'a, 'b, T: BitSource, U: OutputBuffer> BlockStored<'a, 'b, T, U> {
     pub fn new(input: &'a mut T, output: &'b mut U) -> Self {
         BlockStored{ input: input, output: output }
     }

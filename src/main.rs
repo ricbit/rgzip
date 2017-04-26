@@ -23,6 +23,51 @@ use sinks::filesink::FileSink;
 use blockstored::BlockStored;
 use blockfixed::BlockFixed;
 
+pub trait OutputBuffer {
+    fn put_u8(&mut self, data: u8) -> GzipResult<()>;
+
+    fn put_data(&mut self, data: &mut Vec<u8>) -> GzipResult<()>;
+
+    fn copy_window(&mut self, distance: u32, length: u32) -> GzipResult<()>;
+}
+
+struct InMemoryBuffer<'a> {
+    buffer: Vec<u8>,
+    output: &'a mut ByteSink
+}
+
+impl<'a> InMemoryBuffer<'a> {
+    fn new(output: &'a mut ByteSink) -> Self {
+        InMemoryBuffer{ buffer: vec![], output: output }
+    }
+}
+
+impl<'a> OutputBuffer for InMemoryBuffer<'a> {
+    fn put_u8(&mut self, data: u8) -> GzipResult<()> {
+        self.buffer.push(data);
+        self.output.put_u8(data)
+    }
+
+    fn put_data(&mut self, data: &mut Vec<u8>) -> GzipResult<()> {
+        self.buffer.append(data);
+        self.output.put_data(data)
+    }
+
+    fn copy_window(&mut self, distance: u32, length: u32) -> GzipResult<()> {
+        if distance as usize > self.buffer.len() {
+            return Err(GzipError::InvalidDeflateStream);
+        }
+        let index : usize = self.buffer.len() - distance as usize;
+        for i in 0..length {
+            let data = self.buffer[index + i as usize];
+            println!("window char {}", data as u8 as char);
+            self.output.put_u8(data)?;
+            self.buffer.push(data);
+        }
+        Ok(())
+    }
+}
+
 #[allow(non_snake_case)]
 enum GzipHeaderFlags {
     FTEXT = 1,
@@ -51,13 +96,13 @@ struct BlockHeader {
     BTYPE: u8,
 }
 
-struct GzipDecoder<'a, T: 'a + ByteSource, U: 'a + ByteSink> {
+struct GzipDecoder<'a, T: 'a + ByteSource, U: 'a + OutputBuffer> {
     input: &'a mut T,
     output: &'a mut U,
     header: GzipHeader
 }
 
-impl<'a, T: ByteSource, U: ByteSink> GzipDecoder<'a, T, U> {
+impl<'a, T: ByteSource, U: OutputBuffer> GzipDecoder<'a, T, U> {
     fn decode(input : &mut T, output: &mut U) -> GzipResult<()> {
         let mut gzip = GzipDecoder {
             input: input,
@@ -177,7 +222,8 @@ fn read_gzip<'a>(input: &'a String, output: &'a String)
     -> GzipResult<()> {
     let mut source = VecSource::from_file(input)?;
     let mut sink = FileSink::new(output)?;
-    GzipDecoder::decode(&mut source, &mut sink)
+    let mut buffer = InMemoryBuffer::new(&mut sink);
+    GzipDecoder::decode(&mut source, &mut buffer)
 }
 
 fn main() {
