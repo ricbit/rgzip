@@ -53,21 +53,53 @@ struct StoredHeader {
     NLEN: u16
 }
 
-impl GzipHeader {
-    fn decode<T, U>(data : &mut T, output: &mut U) -> GzipResult<Self>
-        where T: ByteSource, U: ByteSink {
+struct GzipDecoder<'a, T: 'a + ByteSource, U: 'a + ByteSink> {
+    input: &'a mut T,
+    output: &'a mut U,
+    header: GzipHeader
+}
 
-        let mut gzip = GzipHeader::default();
-        gzip.decode_header(data)?;
-        gzip.decode_deflate(data, output)?;
-        Ok(gzip)
+struct BlockStored<'a, 'b, T: 'a + BitSource, U: 'b + ByteSink> {
+    input: &'a mut T,
+    output: &'b mut U,
+}
+
+impl<'a, 'b, T: BitSource, U: ByteSink> BlockStored<'a, 'b, T, U> {
+    fn new(input: &'a mut T, output: &'b mut U) -> Self {
+        BlockStored{ input: input, output: output }
     }
 
-    fn decode_deflate<T, U>(&mut self, data: &mut T, output: &mut U)
-        -> GzipResult<()>
-        where T: ByteSource, U: ByteSink {
+    fn decode(&'a mut self) -> GzipResult<()> {
+        let header = StoredHeader{
+            LEN: self.input.get_u16()?,
+            NLEN: self.input.get_u16()?
+        };
+        if header.LEN ^ header.NLEN != 65535 {
+            return Err(GzipError::StoredHeaderFailure);
+        }
+        for _ in 0..header.LEN {
+            let byte = self.input.get_u8()?;
+            self.output.put_u8(byte)?;
+        }
+        println!("Stored block, len = {}", header.LEN);
+        Ok(())
+    }
+}
 
-        let mut bits = BitAdapter::new(data);
+impl<'a, T: ByteSource, U: ByteSink> GzipDecoder<'a, T, U> {
+    fn decode(input : &mut T, output: &mut U) -> GzipResult<()> {
+        let mut gzip = GzipDecoder {
+            input: input,
+            output: output,
+            header: GzipHeader::default()
+        };
+        gzip.decode_header()?;
+        gzip.decode_deflate()?;
+        Ok(())
+    }
+
+    fn decode_deflate<'b>(&mut self) -> GzipResult<()> {
+        let mut bits = BitAdapter::new(self.input);
         for i in 1.. {
             let header = BlockHeader{
                 BFINAL: bits.get_bit()? as u8,
@@ -75,7 +107,7 @@ impl GzipHeader {
             };
             println!("Block {} is final: {}", i, header.BFINAL > 0);
             try!(match header.BTYPE {
-                0 => self.decode_stored(&mut bits, output),
+                0 => BlockStored::new(&mut bits, self.output).decode(),
                 1 => Err(GzipError::StaticHuffmanNotSupported),
                 2 => Err(GzipError::DynamicHuffmanNotSupported),
                 _ => Err(GzipError::DeflateModeNotSupported),
@@ -87,74 +119,54 @@ impl GzipHeader {
         Ok(())
     }
 
-    fn decode_stored<T, U>(&mut self, data: &mut T, output: &mut U)
-        -> GzipResult<()>
-        where T: BitSource, U: ByteSink {
-
-        let header = StoredHeader{
-            LEN: data.get_u16()?,
-            NLEN: data.get_u16()?
-        };
-        if header.LEN ^ header.NLEN != 65535 {
-            return Err(GzipError::StoredHeaderFailure);
-        }
-        for _ in 0..header.LEN {
-            let byte = data.get_u8()?;
-            output.put_u8(byte)?;
-        }
-        println!("Stored block, len = {}", header.LEN);
-        Ok(())
-    }
-
-    fn decode_header<T>(&mut self, data: &mut T) -> GzipResult<()>
-        where T: ByteSource {
+    fn decode_header(&mut self) -> GzipResult<()> {
         use GzipHeaderFlags::*;
 
-        self.ID1 = data.get_u8()?;
-        self.ID2 = data.get_u8()?;
-        if self.ID1 != 31 || self.ID2 != 139 {
+        self.header.ID1 = self.input.get_u8()?;
+        self.header.ID2 = self.input.get_u8()?;
+        if self.header.ID1 != 31 || self.header.ID2 != 139 {
             return Err(GzipError::NotAGzipFile);
         }
 
-        self.CM = data.get_u8()?;
-        if self.CM != 8 {
+        self.header.CM = self.input.get_u8()?;
+        if self.header.CM != 8 {
             return Err(GzipError::NotDeflate);
         }
 
-        self.FLG = data.get_u8()?;
+        self.header.FLG = self.input.get_u8()?;
         println!("File type is {}",
-            if self.FLG & (FTEXT as u8) > 0 {"ASCII"} else {"Binary"});
-        if self.FLG & (FEXTRA as u8) > 0 {
+            if self.header.FLG & (FTEXT as u8) > 0 {"ASCII"} else {"Binary"});
+        if self.header.FLG & (FEXTRA as u8) > 0 {
             return Err(GzipError::FEXTRANotSupported);
         }
-        if self.FLG & (FHCRC as u8) > 0 {
+        if self.header.FLG & (FHCRC as u8) > 0 {
             return Err(GzipError::FHCRCNotSupported);
         }
-        if self.FLG & (FCOMMENT as u8) > 0 {
+        if self.header.FLG & (FCOMMENT as u8) > 0 {
             return Err(GzipError::FCOMMENTNotSupported);
         }
-        if self.FLG >= 0x20 {
+        if self.header.FLG >= 0x20 {
             return Err(GzipError::ReservedFlagsNotSupported);
         }
 
-        self.MTIME = data.get_u32()?;
-        if self.MTIME > 0 {
-            let timespec = time::Timespec::new(self.MTIME as i64, 0);
+        self.header.MTIME = self.input.get_u32()?;
+        if self.header.MTIME > 0 {
+            let timespec = time::Timespec::new(self.header.MTIME as i64, 0);
             let tm = time::at_utc(timespec);
             if let Ok(date) = time::strftime("%F %T", &tm) {
                 println!("Date: {}", date);
             }
         }
 
-        self.XFL = data.get_u8()?;
+        self.header.XFL = self.input.get_u8()?;
 
-        self.OS = data.get_u8()?;
+        self.header.OS = self.input.get_u8()?;
         println!("Operating System: {}", self.translate_os());
 
-        if self.FLG & (FNAME as u8) > 0 {
+        if self.header.FLG & (FNAME as u8) > 0 {
             let mut iso_8859_1 : Vec<u8> = vec![];
             loop {
-                let c = data.get_u8()?;
+                let c = self.input.get_u8()?;
                 if c == 0 {
                     break;
                 }
@@ -163,14 +175,14 @@ impl GzipHeader {
             let utf8 = ISO_8859_1.decode(&iso_8859_1, DecoderTrap::Strict);
             if let Ok(name) = utf8 {
                 println!("Original filename: {}", name);
-                self.original_name = Some(name);
+                self.header.original_name = Some(name);
             }
         }
         return Ok(());
     }
 
     fn translate_os(&self) -> &'static str {
-        match self.OS {
+        match self.header.OS {
 			0 => "FAT filesystem (MS-DOS, OS/2, NT/Win32)",
 			1 => "Amiga",
 			2 => "VMS (or OpenVMS)",
@@ -190,10 +202,11 @@ impl GzipHeader {
     }
 }
 
-fn read_gzip(input: &String, output: &String) -> GzipResult<GzipHeader> {
+fn read_gzip<'a>(input: &'a String, output: &'a String)
+    -> GzipResult<()> {
     let mut source = VecSource::from_file(input)?;
     let mut sink = FileSink::new(output)?;
-    GzipHeader::decode(&mut source, &mut sink)
+    GzipDecoder::decode(&mut source, &mut sink)
 }
 
 fn main() {
