@@ -7,6 +7,7 @@ extern crate encoding;
 mod errors;
 mod sources;
 mod sinks;
+mod blockstored;
 
 use std::env;
 use encoding::{Encoding, DecoderTrap};
@@ -18,6 +19,7 @@ use sources::bitsource::BitSource;
 use sources::bitadapter::BitAdapter;
 use sinks::bytesink::ByteSink;
 use sinks::filesink::FileSink;
+use blockstored::BlockStored;
 
 #[allow(non_snake_case)]
 enum GzipHeaderFlags {
@@ -47,43 +49,10 @@ struct BlockHeader {
     BTYPE: u8,
 }
 
-#[allow(non_snake_case)]
-struct StoredHeader {
-    LEN: u16,
-    NLEN: u16
-}
-
 struct GzipDecoder<'a, T: 'a + ByteSource, U: 'a + ByteSink> {
     input: &'a mut T,
     output: &'a mut U,
     header: GzipHeader
-}
-
-struct BlockStored<'a, 'b, T: 'a + BitSource, U: 'b + ByteSink> {
-    input: &'a mut T,
-    output: &'b mut U,
-}
-
-impl<'a, 'b, T: BitSource, U: ByteSink> BlockStored<'a, 'b, T, U> {
-    fn new(input: &'a mut T, output: &'b mut U) -> Self {
-        BlockStored{ input: input, output: output }
-    }
-
-    fn decode(&'a mut self) -> GzipResult<()> {
-        let header = StoredHeader{
-            LEN: self.input.get_u16()?,
-            NLEN: self.input.get_u16()?
-        };
-        if header.LEN ^ header.NLEN != 65535 {
-            return Err(GzipError::StoredHeaderFailure);
-        }
-        for _ in 0..header.LEN {
-            let byte = self.input.get_u8()?;
-            self.output.put_u8(byte)?;
-        }
-        println!("Stored block, len = {}", header.LEN);
-        Ok(())
-    }
 }
 
 impl<'a, T: ByteSource, U: ByteSink> GzipDecoder<'a, T, U> {

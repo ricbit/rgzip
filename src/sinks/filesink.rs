@@ -9,7 +9,7 @@ pub struct FileSink {
 
 impl FileSink {
     pub fn new(name: &String) -> GzipResult<Self> {
-        let mut file = File::create(name).or(Err(GzipError::CantCreateFile))?;
+        let file = File::create(name).or(Err(GzipError::CantCreateFile))?;
         Ok(FileSink{file : file})
     }
 }
@@ -20,12 +20,6 @@ impl ByteSink for FileSink {
             Ok(0) | Err(_) => Err(GzipError::CantWriteFile),
             _ => Ok(())
         }
-    }
-}
-
-impl Drop for FileSink {
-    fn drop(&mut self) {
-        self.file.flush();
     }
 }
 
