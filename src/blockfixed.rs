@@ -7,7 +7,7 @@ pub struct BlockFixed<'a, 'b, T: 'a + BitSource, U: 'b + ByteSink> {
     output: &'b mut U,
 }
 
-const LENGTH_EXTRA : [u32; 29] =
+const LENGTH_EXTRA : [u8; 29] =
     [0, 0, 0, 0,
      0, 0, 0, 0,
      1, 1, 1, 1,
@@ -36,6 +36,35 @@ fn ensure_lengths_are_consistent() {
     }
 }
 
+const DISTANCE_EXTRA : [u8; 30] =
+    [0, 0, 0, 0,
+     1, 1, 2, 2,
+     3, 3, 4, 4,
+     5, 5, 6, 6,
+     7, 7, 8, 8,
+     9, 9, 10, 10,
+     11, 11, 12, 12,
+     13, 13];
+
+const DISTANCE_START : [u32; 30] =
+    [1, 2, 3, 4,
+     5, 7, 9, 13,
+     17, 25, 33, 49,
+     65, 97, 129, 193,
+     257, 385, 513, 769,
+     1025, 1537, 2049, 3073,
+     4097, 6145, 8193, 12289,
+     16385, 24577];
+
+#[test]
+fn ensure_distances_are_consistent() {
+    for i in 0..(DISTANCE_EXTRA.len() - 1) {
+        assert!(
+            DISTANCE_START[i + 1] == 
+                DISTANCE_START[i] + (1 << DISTANCE_EXTRA[i]));
+    }
+}
+
 impl<'a, 'b, T: BitSource, U: ByteSink> BlockFixed<'a, 'b, T, U> {
     pub fn new(input: &'a mut T, output: &'b mut U) -> Self {
         BlockFixed{ input: input, output: output }
@@ -52,13 +81,30 @@ impl<'a, 'b, T: BitSource, U: ByteSink> BlockFixed<'a, 'b, T, U> {
                 },
                 256 => return Ok(()),
                 257...285 =>  {
-                    println!("window {}", code);
+                    let (length, distance) = self.get_window(code)?;
+                    println!("window {} {}", length, distance);
                     Ok(())
                 },
                 286...287 => Err(GzipError::InvalidDeflateStream),
                 _ => Err(GzipError::InternalError),
             });
         }
+    }
+
+    fn get_window(&mut self, length_base: u32) -> GzipResult<(u32, u32)> {
+        let index = length_base as usize - 257;
+        let length = 
+            LENGTH_START[index] + 
+            self.input.get_bits(LENGTH_EXTRA[index])?;
+        let distance_base = self.input.get_bits(5)?;
+        if distance_base >= 30 {
+            return Err(GzipError::InvalidDeflateStream);
+        }
+        let index = distance_base as usize;
+        let distance = 
+            DISTANCE_START[index] + 
+            self.input.get_bits(DISTANCE_EXTRA[index])?;
+        Ok((length, distance))
     }
 
     fn get_fixed(&mut self) -> GzipResult<u32> {
