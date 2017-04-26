@@ -8,6 +8,7 @@ mod errors;
 mod sources;
 mod sinks;
 mod blockstored;
+mod blockfixed;
 
 use std::env;
 use encoding::{Encoding, DecoderTrap};
@@ -20,6 +21,7 @@ use sources::bitadapter::BitAdapter;
 use sinks::bytesink::ByteSink;
 use sinks::filesink::FileSink;
 use blockstored::BlockStored;
+use blockfixed::BlockFixed;
 
 #[allow(non_snake_case)]
 enum GzipHeaderFlags {
@@ -77,7 +79,7 @@ impl<'a, T: ByteSource, U: ByteSink> GzipDecoder<'a, T, U> {
             println!("Block {} is final: {}", i, header.BFINAL > 0);
             try!(match header.BTYPE {
                 0 => BlockStored::new(&mut bits, self.output).decode(),
-                1 => Err(GzipError::StaticHuffmanNotSupported),
+                1 => BlockFixed::new(&mut bits, self.output).decode(),
                 2 => Err(GzipError::DynamicHuffmanNotSupported),
                 _ => Err(GzipError::DeflateModeNotSupported),
             });
