@@ -10,6 +10,7 @@ mod sinks;
 mod buffers;
 mod blockstored;
 mod blockfixed;
+mod blockdynamic;
 
 use std::env;
 use encoding::{Encoding, DecoderTrap};
@@ -22,6 +23,7 @@ use sources::bitadapter::BitAdapter;
 use sinks::filesink::FileSink;
 use blockstored::BlockStored;
 use blockfixed::BlockFixed;
+use blockdynamic::BlockDynamic;
 use buffers::outputbuffer::OutputBuffer;
 use buffers::inmemory::InMemoryBuffer;
 
@@ -83,7 +85,7 @@ impl<'a, T: ByteSource, U: OutputBuffer> GzipDecoder<'a, T, U> {
             try!(match header.BTYPE {
                 0 => BlockStored::new(&mut bits, self.output).decode(),
                 1 => BlockFixed::new(&mut bits, self.output).decode(),
-                2 => Err(GzipError::DynamicHuffmanNotSupported),
+                2 => BlockDynamic::new(&mut bits, self.output).decode(),
                 _ => Err(GzipError::DeflateModeNotSupported),
             });
             if header.BFINAL > 0 {
