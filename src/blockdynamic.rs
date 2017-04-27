@@ -30,13 +30,32 @@ impl<'a, 'b, T: BitSource, U: OutputBuffer> BlockDynamic<'a, 'b, T, U> {
         };
         println!("Dynamic block, HLIT {}, HDIST {}, HCLEN {}", 
                  header.HLIT, header.HDIST, header.HCLEN);
-        let mut code_lengths = vec![0; 19];
+        let mut code_lengths : Vec<u8> = vec![0; 19];
         for i in 0..header.HCLEN {
             let pos = code_lengths_unshuffle[i as usize];
-            code_lengths[pos] = self.input.get_bits_rev(3)?;
+            code_lengths[pos] = self.input.get_bits_rev(3)? as u8;
         }
+        println!("code len {:?}", code_lengths);
+        let code_huffman = self.build_huffman(code_lengths);
+        println!("code huff {:?}", code_huffman);
 
         Ok(())
+    }
+
+    fn build_huffman(&self, codes : Vec<u8>) {
+        let max = (1 + codes.iter().max().unwrap()) as usize;
+        let mut bit_count = vec![0; max];
+        for i in codes {
+            bit_count[i as usize] += 1;
+        }
+        println!("bit count {:?}", bit_count);
+        let mut next_count = vec![0; max];
+        let mut prev = 0;
+        for i in 1..max {
+            next_count[i] = prev;
+            prev = (prev + bit_count[i]) << 1;
+        }
+        println!("next_count {:?}", next_count);
     }
 }
 
