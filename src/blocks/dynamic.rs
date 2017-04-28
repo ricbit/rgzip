@@ -76,7 +76,7 @@ impl<'a, 'b, T: BitSource, U: OutputBuffer> BlockDynamic<'a, 'b, T, U> {
         }
         println!("next_count {:?}", next_count);
         let mut huffman : HuffmanCode = vec![];
-        for (code, bits) in codes.iter().enumerate().filter(|&(i,x)| *x > 0) {
+        for (code, bits) in codes.iter().enumerate().filter(|&(_, x)| *x > 0) {
             let triple =
                 (*bits, code as u16,
                  self.reverse_bits(next_count[*bits as usize], *bits));

@@ -8,9 +8,7 @@ mod errors;
 mod sources;
 mod sinks;
 mod buffers;
-mod blockstored;
-mod blockfixed;
-mod blockdynamic;
+mod blocks;
 
 use std::env;
 use encoding::{Encoding, DecoderTrap};
@@ -21,9 +19,9 @@ use sources::vecsource::VecSource;
 use sources::bitsource::BitSource;
 use sources::bitadapter::BitAdapter;
 use sinks::filesink::FileSink;
-use blockstored::BlockStored;
-use blockfixed::BlockFixed;
-use blockdynamic::BlockDynamic;
+use blocks::stored::BlockStored;
+use blocks::fixed::BlockFixed;
+use blocks::dynamic::BlockDynamic;
 use buffers::outputbuffer::OutputBuffer;
 use buffers::inmemory::InMemoryBuffer;
 
