@@ -5,6 +5,7 @@ use std::fmt;
 
 pub type GzipResult<T> = Result<T, GzipError>;
 
+#[derive(Debug)]
 pub enum GzipError {
     CantOpenFile,
     CantReadFile,
