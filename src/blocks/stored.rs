@@ -1,6 +1,7 @@
 use errors::{GzipResult, GzipError};
 use sources::bitsource::BitSource;
 use OutputBuffer;
+use context::VERBOSE;
 
 #[allow(non_snake_case)]
 struct StoredHeader {
@@ -30,7 +31,7 @@ impl<'a, T: BitSource, U: OutputBuffer> BlockStored<'a, T, U> {
             let byte = self.input.get_u8()?;
             self.output.put_u8(byte)?;
         }
-        println!("Stored block, len = {}", header.LEN);
+        verbose!(1, "Stored block, len = {}", header.LEN);
         Ok(())
     }
 }

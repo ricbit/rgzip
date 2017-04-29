@@ -1,6 +1,7 @@
 use errors::{GzipResult, GzipError};
 use buffers::outputbuffer::OutputBuffer;
 use sinks::bytesink::ByteSink;
+use context::VERBOSE;
 
 pub struct InMemoryBuffer<'a> {
     buffer: Vec<u8>,
@@ -29,14 +30,13 @@ impl<'a> OutputBuffer for InMemoryBuffer<'a> {
             return Err(GzipError::InvalidDeflateStream);
         }
         let index : usize = self.buffer.len() - distance as usize;
-        print!("window char: ");
+        verbose!(2, "window char: ");
         for i in 0..length {
             let data = self.buffer[index + i as usize];
-            print!("{}", data as u8 as char);
+            verbose!(2, "-- {}", data as u8 as char);
             self.output.put_u8(data)?;
             self.buffer.push(data);
         }
-        println!();
         Ok(())
     }
 }

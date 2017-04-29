@@ -5,6 +5,8 @@ extern crate time;
 extern crate encoding;
 extern crate getopts;
 
+#[macro_use]
+mod context;
 mod errors;
 mod sources;
 mod sinks;
@@ -15,9 +17,9 @@ use std::env;
 use encoding::{Encoding, DecoderTrap};
 use encoding::all::ISO_8859_1;
 use errors::{GzipResult, GzipError};
+use sources::bitsource::BitSource;
 use sources::bytesource::ByteSource;
 use sources::vecsource::VecSource;
-use sources::bitsource::BitSource;
 use sources::bitadapter::BitAdapter;
 use sinks::filesink::FileSink;
 use blocks::stored::BlockStored;
@@ -26,7 +28,7 @@ use blocks::dynamic::BlockDynamic;
 use buffers::outputbuffer::OutputBuffer;
 use buffers::inmemory::InMemoryBuffer;
 use getopts::Options;
-
+use context::VERBOSE;
 
 #[allow(non_snake_case)]
 enum GzipHeaderFlags {
@@ -81,7 +83,7 @@ impl<'a, T: ByteSource, U: OutputBuffer> GzipDecoder<'a, T, U> {
                 BFINAL: bits.get_bit()? as u8,
                 BTYPE: bits.get_bits_rev(2)? as u8,
             };
-            println!("Block {} is final: {}", i, header.BFINAL > 0);
+            verbose!(1, "Block {} is final: {}", i, header.BFINAL > 0);
             try!(match header.BTYPE {
                 0 => BlockStored::new(&mut bits, self.output).decode(),
                 1 => BlockFixed::new(&mut bits, self.output).decode(),
@@ -110,7 +112,7 @@ impl<'a, T: ByteSource, U: OutputBuffer> GzipDecoder<'a, T, U> {
         }
 
         self.header.FLG = self.input.get_u8()?;
-        println!("File type is {}",
+        verbose!(1, "File type is {}",
             if self.header.FLG & (FTEXT as u8) > 0 {"ASCII"} else {"Binary"});
         if self.header.FLG & (FEXTRA as u8) > 0 {
             return Err(GzipError::FEXTRANotSupported);
@@ -130,14 +132,14 @@ impl<'a, T: ByteSource, U: OutputBuffer> GzipDecoder<'a, T, U> {
             let timespec = time::Timespec::new(self.header.MTIME as i64, 0);
             let tm = time::at_utc(timespec);
             if let Ok(date) = time::strftime("%F %T", &tm) {
-                println!("Date: {}", date);
+                verbose!(1, "Date: {}", date);
             }
         }
 
         self.header.XFL = self.input.get_u8()?;
 
         self.header.OS = self.input.get_u8()?;
-        println!("Operating System: {}", self.translate_os());
+        verbose!(1, "Operating System: {}", self.translate_os());
 
         if self.header.FLG & (FNAME as u8) > 0 {
             let mut iso_8859_1 : Vec<u8> = vec![];
@@ -150,7 +152,7 @@ impl<'a, T: ByteSource, U: OutputBuffer> GzipDecoder<'a, T, U> {
             }
             let utf8 = ISO_8859_1.decode(&iso_8859_1, DecoderTrap::Strict);
             if let Ok(name) = utf8 {
-                println!("Original filename: {}", name);
+                verbose!(1, "Original filename: {}", name);
                 self.header.original_name = Some(name);
             }
         }
@@ -194,7 +196,7 @@ fn main() {
     let args : Vec<String> = env::args().collect();
     let mut opts = Options::new();
 
-    opts.optflagopt("v", "verbose", "Verbosity level [0-2]", "lev")
+    opts.optopt("v", "verbose", "Verbosity level [0-2]", "lev")
         .optflag("h", "help", "Show help");
 
     let matches = match opts.parse(&args[1..]) {
@@ -207,6 +209,24 @@ fn main() {
 
     if matches.opt_present("h") {
         println!("{}", opts.usage(USAGE));
+    }
+    if let Some(verbose) = matches.opt_str("v") {
+        match verbose.parse::<u8>() {
+            Ok(v) => {
+                if v <= 2 {
+                    unsafe {
+                        VERBOSE = v;
+                    }
+                } else {
+                    println!("Invalid verbose level");
+                    return;
+                }
+            },
+            Err(_) => {
+                println!("Invalid verbose level");
+                return;
+            }
+        }
     }
     if matches.free.len() < 2 {
         println!("{}", USAGE);

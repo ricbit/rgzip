@@ -3,6 +3,7 @@ use sources::bitsource::BitSource;
 use OutputBuffer;
 use blocks::huffman::Huffman;
 use blocks::window::{WindowDecoder, BlockWindow};
+use context::VERBOSE;
 
 #[allow(non_snake_case)]
 struct DynamicHeader {
@@ -49,16 +50,14 @@ impl<'a, T: BitSource, U: OutputBuffer> BlockDynamic<'a, T, U> {
             HDIST: 1 + self.input.get_bits_rev(5)? as u16,
             HCLEN: 4 + self.input.get_bits_rev(4)? as u16
         };
-        println!("Dynamic block, HLIT {}, HDIST {}, HCLEN {}",
+        verbose!(1, "Dynamic huffman block, HLIT {}, HDIST {}, HCLEN {}",
                  header.HLIT, header.HDIST, header.HCLEN);
         let mut code_lengths : Vec<u8> = vec![0; 19];
         for i in 0..header.HCLEN {
             let pos = CODE_LENGTHS_UNSHUFFLE[i as usize];
             code_lengths[pos] = self.input.get_bits_rev(3)? as u8;
         }
-        println!("code len {:?}", code_lengths);
         let code_huffman = Huffman::build(code_lengths)?;
-        //println!("code huff {:?}", code_huffman);
         let size = (header.HLIT + header.HDIST) as usize;
         let mut huff_lengths = self.decode_lengths(&code_huffman, size)?;
         self.distances = Some(Huffman::build(

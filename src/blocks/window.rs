@@ -1,6 +1,7 @@
 use sources::bitsource::BitSource;
 use errors::{GzipResult, GzipError};
 use OutputBuffer;
+use context::VERBOSE;
 
 const LENGTH_EXTRA : [u8; 29] =
     [0, 0, 0, 0,
@@ -79,14 +80,14 @@ pub trait WindowDecoder<'a, T: 'a + BitSource, U: 'a + OutputBuffer>
             try!(match code {
                 0...255 => {
                     self.get_output().put_u8(code as u8)?;
-                    println!("letter {}", code as u8 as char);
+                    verbose!(2, "letter {}", code as u8 as char);
                     Ok(())
                 },
                 256 => return Ok(()),
                 257...285 =>  {
                     let (length, distance) = self.get_window(code)?;
                     self.get_output().copy_window(distance, length)?;
-                    println!("window {} {}", length, distance);
+                    verbose!(2, "window {} {}", length, distance);
                     Ok(())
                 },
                 286...287 => Err(GzipError::InvalidDeflateStream),

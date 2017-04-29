@@ -2,6 +2,7 @@ use errors::{GzipResult, GzipError};
 use sources::bitsource::BitSource;
 use blocks::window::{WindowDecoder, BlockWindow};
 use OutputBuffer;
+use context::VERBOSE;
 
 pub struct BlockFixed<'a, T: 'a + BitSource, U: 'a + OutputBuffer> {
     input: &'a mut T,
@@ -14,6 +15,7 @@ impl<'a, T: BitSource, U: OutputBuffer > BlockFixed<'a, T, U> {
     }
 
     pub fn decode(&mut self) -> GzipResult<()> {
+        verbose!(1, "Fixed huffman block");
         self.window_decode()
     }
 }

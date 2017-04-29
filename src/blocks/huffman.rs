@@ -1,5 +1,6 @@
 use sources::bitsource::BitSource;
 use errors::{GzipResult, GzipError};
+use context::VERBOSE;
 
 #[derive(Debug)]
 pub struct HuffmanNode {
@@ -19,14 +20,12 @@ impl HuffmanNode {
         for i in &codes {
             bit_count[*i as usize] += 1;
         }
-        println!("bit count {:?}", bit_count);
         let mut next_count = vec![0; max];
         let mut prev = 0;
         for i in 1..max {
             next_count[i] = prev;
             prev = (prev + bit_count[i]) << 1;
         }
-        println!("next_count {:?}", next_count);
         let mut huffman : HuffmanCode = vec![];
         let valid_codes = codes.iter().enumerate().filter(|&(_, x)| *x > 0);
         for (code, bits) in valid_codes {
@@ -37,7 +36,7 @@ impl HuffmanNode {
             next_count[*bits as usize] += 1;
         }
         huffman.sort();
-        println!("huffman {:?}", huffman);
+        verbose!(2, "huffman {:?}", huffman);
         Self::build_trie(&huffman, 0, huffman.len() - 1, 1)
     }
 
