@@ -1,4 +1,3 @@
-use std::fmt;
 use sources::bitsource::BitSource;
 use errors::{GzipResult, GzipError};
 

@@ -31,7 +31,7 @@ impl<'a, T: BitSource, U: OutputBuffer> BlockDynamic<'a, T, U> {
         };
         println!("Dynamic block, HLIT {}, HDIST {}, HCLEN {}",
                  header.HLIT, header.HDIST, header.HCLEN);
-        let mut code_lengths :Vec<u8> = vec![0; 19];
+        let mut code_lengths : Vec<u8> = vec![0; 19];
         for i in 0..header.HCLEN {
             let pos = CODE_LENGTHS_UNSHUFFLE[i as usize];
             code_lengths[pos] = self.input.get_bits_rev(3)? as u8;
@@ -40,6 +40,24 @@ impl<'a, T: BitSource, U: OutputBuffer> BlockDynamic<'a, T, U> {
         let code_huffman = Huffman::build(code_lengths)?;
         //println!("code huff {:?}", code_huffman);
         let size = (header.HLIT + header.HDIST) as usize;
+        let mut huff_lengths = self.decode_lengths(&code_huffman, size)?;
+        let distances = Huffman::build(
+            huff_lengths.split_off(header.HLIT as usize))?;
+        let literals = Huffman::build(huff_lengths)?;
+        /*println!("Huff len:");
+        for (i, value) in huff_lengths.iter().enumerate() {
+            println!("code {} => length {}", i, value);
+        }*/
+        for i in 0..30 {
+            let x = Huffman::get_code(&literals, self.input)? as u8;
+            println!("code {}", x as u8 as char);
+        }
+        Ok(())
+    }
+
+    fn decode_lengths(&mut self, code_huffman: &Huffman, size: usize) 
+        -> GzipResult<Vec<u8>> {
+
         let mut huff_lengths: Vec<u8> = vec![];
         let mut previous : Option<u8> = None;
         while huff_lengths.len() < size {
@@ -50,10 +68,9 @@ impl<'a, T: BitSource, U: OutputBuffer> BlockDynamic<'a, T, U> {
                 },
                 16 => {
                     let repeat = 3 + self.input.get_bits_rev(2)? as usize;
-                    if previous == None {
-                        return Err(GzipError::InvalidDeflateStream);
-                    }
-                    huff_lengths.append(&mut vec![previous.unwrap(); repeat]);
+                    let value = previous
+                        .ok_or(GzipError::InvalidDeflateStream)?;
+                    huff_lengths.append(&mut vec![value; repeat]);
                 },
                 17 => {
                     let size = 3 + self.input.get_bits_rev(3)? as usize;
@@ -68,13 +85,8 @@ impl<'a, T: BitSource, U: OutputBuffer> BlockDynamic<'a, T, U> {
                 _ => return Err(GzipError::InternalError)
             }
         }
-        /*println!("Huff len:");
-        for (i, value) in huff_lengths.iter().enumerate() {
-            println!("code {} => length {}", i, value);
-        }*/
-        Ok(())
+        Ok(huff_lengths)
     }
-
 }
 
 
