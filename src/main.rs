@@ -3,6 +3,7 @@
 
 extern crate time;
 extern crate encoding;
+extern crate getopts;
 
 mod errors;
 mod sources;
@@ -24,6 +25,7 @@ use blocks::fixed::BlockFixed;
 use blocks::dynamic::BlockDynamic;
 use buffers::outputbuffer::OutputBuffer;
 use buffers::inmemory::InMemoryBuffer;
+use getopts::Options;
 
 
 #[allow(non_snake_case)]
@@ -184,16 +186,37 @@ fn read_gzip<'a>(input: &'a String, output: &'a String)
     GzipDecoder::decode(&mut source, &mut buffer)
 }
 
+const USAGE : &'static str = "Usage: rgzip [flags] input output";
+
 fn main() {
     println!("RGzip 0.1, by Ricardo Bittencourt 2017");
 
     let args : Vec<String> = env::args().collect();
-    if args.len() < 3 {
-        println!("Usage: rgzip input_file output_file");
+    let mut opts = Options::new();
+
+    opts.optflagopt("v", "verbose", "Verbosity level [0-2]", "lev")
+        .optflag("h", "help", "Show help");
+
+    let matches = match opts.parse(&args[1..]) {
+        Ok(m) => m,
+        Err(error) => {
+            println!("{}", error);
+            return;
+        }
+    };
+
+    if matches.opt_present("h") {
+        println!("{}", opts.usage(USAGE));
+    }
+    if matches.free.len() < 2 {
+        println!("{}", USAGE);
         return;
     }
-    println!("Reading from {}, writing to {}", args[1], args[2]);
-    match read_gzip(&args[1], &args[2]) {
+
+    let ref input = matches.free[0];
+    let ref output = matches.free[1];
+    println!("Reading from {}, writing to {}", input, output);
+    match read_gzip(&input, &output) {
         Ok(_) => println!("Finished"),
         Err(error) => println!("Error: {}", error)
     }
