@@ -79,9 +79,9 @@ impl HuffmanNode {
         })
     }
 
-    pub fn get_code(huffman: &Self, input: &mut BitSource) -> GzipResult<u16> {
+    pub fn get_code(huffman: &Self, input: &mut BitSource) -> GzipResult<u32> {
         if let Some(code) = huffman.code {
-            Ok(code)
+            Ok(code as u32)
         } else {
             let bit = input.get_bit()?;
             match bit {

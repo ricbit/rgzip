@@ -29,12 +29,14 @@ impl<'a> OutputBuffer for InMemoryBuffer<'a> {
             return Err(GzipError::InvalidDeflateStream);
         }
         let index : usize = self.buffer.len() - distance as usize;
+        print!("window char: ");
         for i in 0..length {
             let data = self.buffer[index + i as usize];
-            println!("window char {}", data as u8 as char);
+            print!("{}", data as u8 as char);
             self.output.put_u8(data)?;
             self.buffer.push(data);
         }
+        println!();
         Ok(())
     }
 }

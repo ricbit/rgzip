@@ -61,18 +61,10 @@ impl<'a, T: BitSource, U: OutputBuffer> BlockDynamic<'a, T, U> {
         //println!("code huff {:?}", code_huffman);
         let size = (header.HLIT + header.HDIST) as usize;
         let mut huff_lengths = self.decode_lengths(&code_huffman, size)?;
-        let distances = Huffman::build(
-            huff_lengths.split_off(header.HLIT as usize))?;
-        let literals = Huffman::build(huff_lengths)?;
-        /*println!("Huff len:");
-        for (i, value) in huff_lengths.iter().enumerate() {
-            println!("code {} => length {}", i, value);
-        }*/
-        for i in 0..30 {
-            let x = Huffman::get_code(&literals, self.input)? as u8;
-            println!("code {}", x as u8 as char);
-        }
-        Ok(())
+        self.distances = Some(Huffman::build(
+            huff_lengths.split_off(header.HLIT as usize))?);
+        self.literals = Some(Huffman::build(huff_lengths)?);
+        self.window_decode()
     }
 
     fn decode_lengths(&mut self, code_huffman: &Huffman, size: usize) 
@@ -113,11 +105,13 @@ impl<'a, T: BitSource, U: OutputBuffer> WindowDecoder<'a, T, U>
     for BlockDynamic<'a, T, U> {
 
     fn get_literal(&mut self) -> GzipResult<u32> {
-        unimplemented!();
+        let huffman = self.literals.as_ref().ok_or(GzipError::InternalError)?;
+        Huffman::get_code(&huffman, self.input)
     }
 
     fn get_distance(&mut self) -> GzipResult<u32> {
-        unimplemented!();
+        let huffman = self.distances.as_ref().ok_or(GzipError::InternalError)?;
+        Huffman::get_code(&huffman, self.input)
     }
 }
 
