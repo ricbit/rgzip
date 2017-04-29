@@ -8,17 +8,17 @@ struct StoredHeader {
     NLEN: u16
 }
 
-pub struct BlockStored<'a, 'b, T: 'a + BitSource, U: 'b + OutputBuffer> {
+pub struct BlockStored<'a, T: 'a + BitSource, U: 'a + OutputBuffer> {
     input: &'a mut T,
-    output: &'b mut U,
+    output: &'a mut U,
 }
 
-impl<'a, 'b, T: BitSource, U: OutputBuffer> BlockStored<'a, 'b, T, U> {
-    pub fn new(input: &'a mut T, output: &'b mut U) -> Self {
+impl<'a, T: BitSource, U: OutputBuffer> BlockStored<'a, T, U> {
+    pub fn new(input: &'a mut T, output: &'a mut U) -> Self {
         BlockStored{ input: input, output: output }
     }
 
-    pub fn decode(&'a mut self) -> GzipResult<()> {
+    pub fn decode(&mut self) -> GzipResult<()> {
         let header = StoredHeader{
             LEN: self.input.get_u16()?,
             NLEN: self.input.get_u16()?

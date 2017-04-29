@@ -72,7 +72,7 @@ impl<'a, T: ByteSource, U: OutputBuffer> GzipDecoder<'a, T, U> {
         Ok(())
     }
 
-    fn decode_deflate<'b>(&mut self) -> GzipResult<()> {
+    fn decode_deflate(&mut self) -> GzipResult<()> {
         let mut bits = BitAdapter::new(self.input);
         for i in 1.. {
             let header = BlockHeader{

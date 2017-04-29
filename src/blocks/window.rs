@@ -1,11 +1,6 @@
-use errors::{GzipResult, GzipError};
 use sources::bitsource::BitSource;
+use errors::{GzipResult, GzipError};
 use OutputBuffer;
-
-pub struct BlockFixed<'a, T: 'a + BitSource, U: 'a + OutputBuffer> {
-    input: &'a mut T,
-    output: &'a mut U,
-}
 
 const LENGTH_EXTRA : [u8; 29] =
     [0, 0, 0, 0,
@@ -60,29 +55,35 @@ const DISTANCE_START : [u32; 30] =
 fn ensure_distances_are_consistent() {
     for i in 0..(DISTANCE_EXTRA.len() - 1) {
         assert!(
-            DISTANCE_START[i + 1] == 
+            DISTANCE_START[i + 1] ==
                 DISTANCE_START[i] + (1 << DISTANCE_EXTRA[i]));
     }
 }
 
-impl<'a, T: BitSource, U: OutputBuffer > BlockFixed<'a, T, U> {
-    pub fn new(input: &'a mut T, output: &'a mut U) -> Self {
-        BlockFixed{ input: input, output: output }
-    }
 
-    pub fn decode(&'a mut self) -> GzipResult<()> {
+pub trait BlockWindow<'a, T: 'a + BitSource, U: 'a + OutputBuffer> {
+    fn get_input(&mut self) -> &mut T;
+    fn get_output(&mut self) -> &mut U;
+}
+
+pub trait WindowDecoder<'a, T: 'a + BitSource, U: 'a + OutputBuffer>
+    : BlockWindow<'a, T, U> {
+
+    fn get_code(&mut self) -> GzipResult<u32>;
+
+    fn window_decode(&mut self) -> GzipResult<()> {
         loop {
-            let code = self.get_fixed()?;
+            let code = self.get_code()?;
             try!(match code {
                 0...255 => {
-                    self.output.put_u8(code as u8)?;
+                    self.get_output().put_u8(code as u8)?;
                     println!("letter {}", code as u8 as char);
                     Ok(())
                 },
                 256 => return Ok(()),
                 257...285 =>  {
                     let (length, distance) = self.get_window(code)?;
-                    self.output.copy_window(distance, length)?;
+                    self.get_output().copy_window(distance, length)?;
                     println!("window {} {}", length, distance);
                     Ok(())
                 },
@@ -94,34 +95,17 @@ impl<'a, T: BitSource, U: OutputBuffer > BlockFixed<'a, T, U> {
 
     fn get_window(&mut self, length_base: u32) -> GzipResult<(u32, u32)> {
         let index = length_base as usize - 257;
-        let length = 
-            LENGTH_START[index] + 
-            self.input.get_bits_rev(LENGTH_EXTRA[index])?;
-        let distance_base = self.input.get_bits(5)?;
+        let length =
+            LENGTH_START[index] +
+            self.get_input().get_bits_rev(LENGTH_EXTRA[index])?;
+        let distance_base = self.get_input().get_bits(5)?;
         if distance_base >= 30 {
             return Err(GzipError::InvalidDeflateStream);
         }
         let index = distance_base as usize;
-        let distance = 
-            DISTANCE_START[index] + 
-            self.input.get_bits_rev(DISTANCE_EXTRA[index])?;
+        let distance =
+            DISTANCE_START[index] +
+            self.get_input().get_bits_rev(DISTANCE_EXTRA[index])?;
         Ok((length, distance))
     }
-
-    fn get_fixed(&mut self) -> GzipResult<u32> {
-        let base = self.input.get_bits(7)?;
-        match base {
-            0...0x17 =>
-                Ok(base + 256),
-            0x18...0x5F =>
-                Ok((base << 1) + self.input.get_bits(1)? - 0x30),
-            0x60...0x63 =>
-                Ok((base << 1) + self.input.get_bits(1)? - 0xC0 + 256),
-            0x64...0x7F =>
-                Ok((base << 2) + self.input.get_bits(2)? - 0x190 + 144),
-            _ => Err(GzipError::InternalError)
-        }
-    }
 }
-
-

@@ -10,20 +10,20 @@ struct DynamicHeader {
     HCLEN: u16
 }
 
-pub struct BlockDynamic<'a, 'b, T: 'a + BitSource, U: 'b + OutputBuffer> {
+pub struct BlockDynamic<'a, T: 'a + BitSource, U: 'a + OutputBuffer> {
     input: &'a mut T,
-    output: &'b mut U,
+    output: &'a mut U,
 }
 
 const CODE_LENGTHS_UNSHUFFLE : [usize; 19] =
     [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15];
 
-impl<'a, 'b, T: BitSource, U: OutputBuffer> BlockDynamic<'a, 'b, T, U> {
-    pub fn new(input: &'a mut T, output: &'b mut U) -> Self {
+impl<'a, T: BitSource, U: OutputBuffer> BlockDynamic<'a, T, U> {
+    pub fn new(input: &'a mut T, output: &'a mut U) -> Self {
         BlockDynamic{ input: input, output: output }
     }
 
-    pub fn decode(&'a mut self) -> GzipResult<()> {
+    pub fn decode(&mut self) -> GzipResult<()> {
         let header = DynamicHeader {
             HLIT: 257 + self.input.get_bits_rev(5)? as u16,
             HDIST: 1 + self.input.get_bits_rev(5)? as u16,
