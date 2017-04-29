@@ -69,11 +69,13 @@ pub trait BlockWindow<'a, T: 'a + BitSource, U: 'a + OutputBuffer> {
 pub trait WindowDecoder<'a, T: 'a + BitSource, U: 'a + OutputBuffer>
     : BlockWindow<'a, T, U> {
 
-    fn get_code(&mut self) -> GzipResult<u32>;
+    fn get_literal(&mut self) -> GzipResult<u32>;
+
+    fn get_distance(&mut self) -> GzipResult<u32>;
 
     fn window_decode(&mut self) -> GzipResult<()> {
         loop {
-            let code = self.get_code()?;
+            let code = self.get_literal()?;
             try!(match code {
                 0...255 => {
                     self.get_output().put_u8(code as u8)?;
@@ -98,7 +100,7 @@ pub trait WindowDecoder<'a, T: 'a + BitSource, U: 'a + OutputBuffer>
         let length =
             LENGTH_START[index] +
             self.get_input().get_bits_rev(LENGTH_EXTRA[index])?;
-        let distance_base = self.get_input().get_bits(5)?;
+        let distance_base = self.get_distance()?;
         if distance_base >= 30 {
             return Err(GzipError::InvalidDeflateStream);
         }

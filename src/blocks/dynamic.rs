@@ -2,6 +2,7 @@ use errors::{GzipResult, GzipError};
 use sources::bitsource::BitSource;
 use OutputBuffer;
 use blocks::huffman::Huffman;
+use blocks::window::{WindowDecoder, BlockWindow};
 
 #[allow(non_snake_case)]
 struct DynamicHeader {
@@ -13,6 +14,20 @@ struct DynamicHeader {
 pub struct BlockDynamic<'a, T: 'a + BitSource, U: 'a + OutputBuffer> {
     input: &'a mut T,
     output: &'a mut U,
+    literals: Option<Huffman>,
+    distances: Option<Huffman>
+}
+
+impl<'a, T: BitSource, U: OutputBuffer> BlockWindow<'a, T, U>
+    for BlockDynamic<'a, T, U> {
+
+    fn get_input(&mut self) -> &mut T {
+        self.input
+    }
+
+    fn get_output(&mut self) -> &mut U {
+        self.output
+    }
 }
 
 const CODE_LENGTHS_UNSHUFFLE : [usize; 19] =
@@ -20,7 +35,12 @@ const CODE_LENGTHS_UNSHUFFLE : [usize; 19] =
 
 impl<'a, T: BitSource, U: OutputBuffer> BlockDynamic<'a, T, U> {
     pub fn new(input: &'a mut T, output: &'a mut U) -> Self {
-        BlockDynamic{ input: input, output: output }
+        BlockDynamic {
+            input: input, 
+            output: output, 
+            literals: None, 
+            distances: None 
+        }
     }
 
     pub fn decode(&mut self) -> GzipResult<()> {
@@ -89,4 +109,15 @@ impl<'a, T: BitSource, U: OutputBuffer> BlockDynamic<'a, T, U> {
     }
 }
 
+impl<'a, T: BitSource, U: OutputBuffer> WindowDecoder<'a, T, U>
+    for BlockDynamic<'a, T, U> {
+
+    fn get_literal(&mut self) -> GzipResult<u32> {
+        unimplemented!();
+    }
+
+    fn get_distance(&mut self) -> GzipResult<u32> {
+        unimplemented!();
+    }
+}
 

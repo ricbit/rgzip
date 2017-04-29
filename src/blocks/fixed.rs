@@ -33,7 +33,7 @@ impl<'a, T: BitSource, U: OutputBuffer> BlockWindow<'a, T, U>
 impl<'a, T: BitSource, U: OutputBuffer> WindowDecoder<'a, T, U>
     for BlockFixed<'a, T, U> {
 
-    fn get_code(&mut self) -> GzipResult<u32> {
+    fn get_literal(&mut self) -> GzipResult<u32> {
         let base = self.input.get_bits(7)?;
         match base {
             0...0x17 =>
@@ -46,6 +46,10 @@ impl<'a, T: BitSource, U: OutputBuffer> WindowDecoder<'a, T, U>
                 Ok((base << 2) + self.input.get_bits(2)? - 0x190 + 144),
             _ => Err(GzipError::InternalError)
         }
+    }
+
+    fn get_distance(&mut self) -> GzipResult<u32> {
+        self.input.get_bits(5)
     }
 }
 
