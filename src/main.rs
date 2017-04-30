@@ -21,14 +21,16 @@ use sources::bitsource::BitSource;
 use sources::bytesource::ByteSource;
 use sources::vecsource::VecSource;
 use sources::bitadapter::BitAdapter;
+use sinks::bytesink::ByteSink;
 use sinks::filesink::FileSink;
+use sinks::filebufsink::FileBufSink;
 use blocks::stored::BlockStored;
 use blocks::fixed::BlockFixed;
 use blocks::dynamic::BlockDynamic;
 use buffers::outputbuffer::OutputBuffer;
 use buffers::inmemory::InMemoryBuffer;
 use getopts::Options;
-use context::VERBOSE;
+use context::{VERBOSE, SINK};
 
 #[allow(non_snake_case)]
 enum GzipHeaderFlags {
@@ -183,12 +185,43 @@ impl<'a, T: ByteSource, U: OutputBuffer> GzipDecoder<'a, T, U> {
 fn read_gzip<'a>(input: &'a String, output: &'a String)
     -> GzipResult<()> {
     let mut source = VecSource::from_file(input)?;
-    let mut sink = FileSink::new(output)?;
-    let mut buffer = InMemoryBuffer::new(&mut sink);
+    let sink_method;
+    unsafe {
+        sink_method = SINK;
+    }
+    let mut sink = match sink_method {
+        0 => Box::new(FileSink::new(output)?) as Box<ByteSink>,
+        1 => Box::new(FileBufSink::new(output)?) as Box<ByteSink>,
+        _ => return Err(GzipError::InternalError)
+    };
+    let mut buffer = InMemoryBuffer::new(sink.as_mut());
     GzipDecoder::decode(&mut source, &mut buffer)
 }
 
 const USAGE : &'static str = "Usage: rgzip [flags] input output";
+
+macro_rules! parse_int_argument {
+    ($matches: expr, $arg: expr, $limit: expr, $msg: expr, $var: ident) => {
+        if let Some(n) = $matches.opt_str($arg) {
+            match n.parse::<u8>() {
+                Ok(v) => {
+                    if v <= $limit {
+                        unsafe {
+                            $var = v;
+                        };
+                    } else {
+                        println!("{}", $msg);
+                        return;
+                    }
+                },
+                Err(_) => {
+                    println!("{}", $msg);
+                    return;
+                }
+            }
+        }
+    }
+}
 
 fn main() {
     println!("RGzip 0.1, by Ricardo Bittencourt 2017");
@@ -196,7 +229,8 @@ fn main() {
     let args : Vec<String> = env::args().collect();
     let mut opts = Options::new();
 
-    opts.optopt("v", "verbose", "Verbosity level [0-2]", "lev")
+    opts.optopt("v", "verbose", "Verbosity level [0-2]", "v")
+        .optopt("k", "sink", "Sink method 0=FileSink 1=FileBufSink(def)", "m")
         .optflag("h", "help", "Show help");
 
     let matches = match opts.parse(&args[1..]) {
@@ -210,24 +244,8 @@ fn main() {
     if matches.opt_present("h") {
         println!("{}", opts.usage(USAGE));
     }
-    if let Some(verbose) = matches.opt_str("v") {
-        match verbose.parse::<u8>() {
-            Ok(v) => {
-                if v <= 2 {
-                    unsafe {
-                        VERBOSE = v;
-                    }
-                } else {
-                    println!("Invalid verbose level");
-                    return;
-                }
-            },
-            Err(_) => {
-                println!("Invalid verbose level");
-                return;
-            }
-        }
-    }
+    parse_int_argument!(matches, "v", 2, "Invalid verbose level", VERBOSE);
+    parse_int_argument!(matches, "k", 1, "Invalid sink method", SINK);
     if matches.free.len() < 2 {
         println!("{}", USAGE);
         return;
