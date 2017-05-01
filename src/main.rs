@@ -213,17 +213,12 @@ macro_rules! parse_int_argument {
     ($matches: expr, $arg: expr, $limit: expr, $msg: expr, $var: ident) => {
         if let Some(n) = $matches.opt_str($arg) {
             match n.parse::<u8>() {
-                Ok(v) => {
-                    if v <= $limit {
-                        unsafe {
-                            $var = v;
-                        };
-                    } else {
-                        println!("{}", $msg);
-                        return;
-                    }
+                Ok(v) if v <= $limit => {
+                    unsafe {
+                        $var = v;
+                    };
                 },
-                Err(_) => {
+                _ => {
                     println!("{}", $msg);
                     return;
                 }
@@ -233,7 +228,7 @@ macro_rules! parse_int_argument {
 }
 
 fn main() {
-    println!("RGzip 0.1, by Ricardo Bittencourt 2017");
+    println!("rgzip 0.1, by Ricardo Bittencourt 2017");
 
     let args : Vec<String> = env::args().collect();
     let mut opts = Options::new();
@@ -257,6 +252,7 @@ fn main() {
     }
     parse_int_argument!(matches, "v", 2, "Invalid verbose level", VERBOSE);
     parse_int_argument!(matches, "k", 1, "Invalid sink method", SINK);
+    parse_int_argument!(matches, "s", 0, "Invalid source method", SOURCE);
     if matches.free.len() < 2 {
         println!("{}", USAGE);
         return;
