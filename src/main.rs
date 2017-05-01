@@ -22,6 +22,7 @@ use sources::bytesource::ByteSource;
 use sources::vecsource::VecSource;
 use sources::bitadapter::BitAdapter;
 use sources::buffersource::BufferSource;
+use sources::vecbufsource::VecBufSource;
 use sinks::bytesink::ByteSink;
 use sinks::filesink::FileSink;
 use sinks::filebufsink::FileBufSink;
@@ -203,6 +204,9 @@ fn read_gzip<'a>(input: &'a String, output: &'a String) -> GzipResult<()> {
         1 => GzipDecoder::decode(
             &mut BufferSource::from_file(input)?,
             &mut buffer),
+        2 => GzipDecoder::decode(
+            &mut VecBufSource::from_file(input)?,
+            &mut buffer),
         _ => Err(GzipError::InternalError)
     }
 }
@@ -235,7 +239,7 @@ fn main() {
 
     opts.optopt("v", "verbose", "Verbosity level [0-2]", "v")
         .optopt("s", "source",
-                "Source method 0=VecSource(def) 1=BufferSource", "m")
+                "Source method 0=VecSource(def) 1=BufferSource 2=VecBufSource", "m")
         .optopt("k", "sink", "Sink method 0=FileSink 1=FileBufSink(def)", "m")
         .optflag("h", "help", "Show help");
 
@@ -252,7 +256,7 @@ fn main() {
     }
     parse_int_argument!(matches, "v", 2, "Invalid verbose level", VERBOSE);
     parse_int_argument!(matches, "k", 1, "Invalid sink method", SINK);
-    parse_int_argument!(matches, "s", 0, "Invalid source method", SOURCE);
+    parse_int_argument!(matches, "s", 2, "Invalid source method", SOURCE);
     if matches.free.len() < 2 {
         println!("{}", USAGE);
         return;
