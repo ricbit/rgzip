@@ -26,7 +26,7 @@ impl VecSource {
         let mut data = vec![];
         let mut file = File::open(name).or(Err(CantOpenFile))?;
         file.read_to_end(&mut data).or(Err(CantReadFile))?;
-        Ok(VecSource{ data: data, pos: 0 })
+        Ok(VecSource{ data, pos: 0 })
     }
 }
 

@@ -16,7 +16,7 @@ pub struct BlockStored<'a, T: 'a + BitSource, U: 'a + OutputBuffer> {
 
 impl<'a, T: BitSource, U: OutputBuffer> BlockStored<'a, T, U> {
     pub fn new(input: &'a mut T, output: &'a mut U) -> Self {
-        BlockStored{ input: input, output: output }
+        BlockStored{ input, output }
     }
 
     pub fn decode(&mut self) -> GzipResult<()> {

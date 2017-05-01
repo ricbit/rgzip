@@ -10,7 +10,7 @@ pub struct InMemoryBuffer<'a> {
 
 impl<'a> InMemoryBuffer<'a> {
     pub fn new(output: &'a mut ByteSink) -> Self {
-        InMemoryBuffer{ buffer: vec![], output: output }
+        InMemoryBuffer{ buffer: vec![], output }
     }
 }
 

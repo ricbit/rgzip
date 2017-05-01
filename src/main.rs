@@ -207,7 +207,7 @@ fn read_gzip<'a>(input: &'a String, output: &'a String) -> GzipResult<()> {
     }
 }
 
-const USAGE : &'static str = "Usage: rgzip [flags] input output";
+const USAGE : &str = "Usage: rgzip [flags] input output";
 
 macro_rules! parse_int_argument {
     ($matches: expr, $arg: expr, $limit: expr, $msg: expr, $var: ident) => {
@@ -239,7 +239,7 @@ fn main() {
     let mut opts = Options::new();
 
     opts.optopt("v", "verbose", "Verbosity level [0-2]", "v")
-        .optopt("s", "source", 
+        .optopt("s", "source",
                 "Source method 0=VecSource(def) 1=BufferSource", "m")
         .optopt("k", "sink", "Sink method 0=FileSink 1=FileBufSink(def)", "m")
         .optflag("h", "help", "Show help");

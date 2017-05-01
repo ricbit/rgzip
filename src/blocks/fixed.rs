@@ -11,7 +11,7 @@ pub struct BlockFixed<'a, T: 'a + BitSource, U: 'a + OutputBuffer> {
 
 impl<'a, T: BitSource, U: OutputBuffer > BlockFixed<'a, T, U> {
     pub fn new(input: &'a mut T, output: &'a mut U) -> Self {
-        BlockFixed{ input: input, output: output }
+        BlockFixed{ input, output }
     }
 
     pub fn decode(&mut self) -> GzipResult<()> {

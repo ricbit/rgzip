@@ -37,10 +37,10 @@ const CODE_LENGTHS_UNSHUFFLE : [usize; 19] =
 impl<'a, T: BitSource, U: OutputBuffer> BlockDynamic<'a, T, U> {
     pub fn new(input: &'a mut T, output: &'a mut U) -> Self {
         BlockDynamic {
-            input: input, 
-            output: output, 
-            literals: None, 
-            distances: None 
+            input,
+            output,
+            literals: None,
+            distances: None
         }
     }
 
@@ -66,7 +66,7 @@ impl<'a, T: BitSource, U: OutputBuffer> BlockDynamic<'a, T, U> {
         self.window_decode()
     }
 
-    fn decode_lengths(&mut self, code_huffman: &Huffman, size: usize) 
+    fn decode_lengths(&mut self, code_huffman: &Huffman, size: usize)
         -> GzipResult<Vec<u8>> {
 
         let mut huff_lengths: Vec<u8> = vec![];

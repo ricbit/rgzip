@@ -10,7 +10,7 @@ pub struct FileSink {
 impl FileSink {
     pub fn new(name: &String) -> GzipResult<Self> {
         let file = File::create(name).or(Err(GzipError::CantCreateFile))?;
-        Ok(FileSink{file : file})
+        Ok(FileSink{ file })
     }
 }
 

@@ -10,7 +10,7 @@ pub struct BitAdapter<'a, T: 'a + ByteSource> {
 
 impl<'a, T: ByteSource> BitAdapter<'a, T> {
     pub fn new(data: &'a mut T) -> Self {
-        BitAdapter::<T>{ data: data, pos: 0, cur: 0 }
+        BitAdapter::<T>{ data, pos: 0, cur: 0 }
     }
 }
 

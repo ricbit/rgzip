@@ -14,7 +14,7 @@ const BUFSIZE : usize = 32768;
 impl FileBufSink {
     pub fn new(name: &String) -> GzipResult<Self> {
         let file = File::create(name).or(Err(GzipError::CantCreateFile))?;
-        Ok(FileBufSink{ file : file, buffer: vec![0; BUFSIZE], pos: 0 })
+        Ok(FileBufSink{ file, buffer: vec![0; BUFSIZE], pos: 0 })
     }
 
     pub fn flush(&mut self, limit: usize) -> GzipResult<()> {
