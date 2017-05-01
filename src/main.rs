@@ -21,6 +21,7 @@ use sources::bitsource::BitSource;
 use sources::bytesource::ByteSource;
 use sources::vecsource::VecSource;
 use sources::bitadapter::BitAdapter;
+use sources::buffersource::BufferSource;
 use sinks::bytesink::ByteSink;
 use sinks::filesink::FileSink;
 use sinks::filebufsink::FileBufSink;
@@ -30,7 +31,7 @@ use blocks::dynamic::BlockDynamic;
 use buffers::outputbuffer::OutputBuffer;
 use buffers::inmemory::InMemoryBuffer;
 use getopts::Options;
-use context::{VERBOSE, SINK};
+use context::{VERBOSE, SINK, SOURCE};
 
 #[allow(non_snake_case)]
 enum GzipHeaderFlags {
@@ -182,12 +183,12 @@ impl<'a, T: ByteSource, U: OutputBuffer> GzipDecoder<'a, T, U> {
     }
 }
 
-fn read_gzip<'a>(input: &'a String, output: &'a String)
-    -> GzipResult<()> {
-    let mut source = VecSource::from_file(input)?;
+fn read_gzip<'a>(input: &'a String, output: &'a String) -> GzipResult<()> {
     let sink_method;
+    let source_method;
     unsafe {
         sink_method = SINK;
+        source_method = SOURCE;
     }
     let mut sink = match sink_method {
         0 => Box::new(FileSink::new(output)?) as Box<ByteSink>,
@@ -195,7 +196,15 @@ fn read_gzip<'a>(input: &'a String, output: &'a String)
         _ => return Err(GzipError::InternalError)
     };
     let mut buffer = InMemoryBuffer::new(sink.as_mut());
-    GzipDecoder::decode(&mut source, &mut buffer)
+    match source_method {
+        0 => GzipDecoder::decode(
+            &mut VecSource::from_file(input)?,
+            &mut buffer),
+        1 => GzipDecoder::decode(
+            &mut BufferSource::from_file(input)?,
+            &mut buffer),
+        _ => Err(GzipError::InternalError)
+    }
 }
 
 const USAGE : &'static str = "Usage: rgzip [flags] input output";
@@ -230,6 +239,8 @@ fn main() {
     let mut opts = Options::new();
 
     opts.optopt("v", "verbose", "Verbosity level [0-2]", "v")
+        .optopt("s", "source", 
+                "Source method 0=VecSource(def) 1=BufferSource", "m")
         .optopt("k", "sink", "Sink method 0=FileSink 1=FileBufSink(def)", "m")
         .optflag("h", "help", "Show help");
 

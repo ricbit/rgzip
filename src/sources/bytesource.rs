@@ -6,7 +6,7 @@ pub trait ByteSource {
     fn get_variable(&mut self, size: u8) -> GzipResult<u32> {
         let mut ans : u32 = 0;
         for i in 0..size {
-            ans |= (try!(self.get_u8()) as u32) << (8 * i);
+            ans |= (self.get_u8()? as u32) << (8 * i);
         }
         Ok(ans)
     }

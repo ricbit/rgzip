@@ -24,8 +24,8 @@ impl VecSource {
     pub fn from_file(name: &String) -> GzipResult<Self> {
         use GzipError::*;
         let mut data = vec![];
-        let mut file = try!(File::open(name).or(Err(CantOpenFile)));
-        try!(file.read_to_end(&mut data).or(Err(CantReadFile)));
+        let mut file = File::open(name).or(Err(CantOpenFile))?;
+        file.read_to_end(&mut data).or(Err(CantReadFile))?;
         Ok(VecSource{ data: data, pos: 0 })
     }
 }
