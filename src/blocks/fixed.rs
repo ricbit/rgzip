@@ -4,13 +4,13 @@ use blocks::window::{WindowDecoder, BlockWindow};
 use OutputBuffer;
 use context::VERBOSE;
 
-pub struct BlockFixed<'a, T: 'a + BitSource> {
-    input: &'a mut T,
+pub struct BlockFixed<'a> {
+    input: &'a mut BitSource,
     output: &'a mut OutputBuffer,
 }
 
-impl<'a, T: BitSource> BlockFixed<'a, T> {
-    pub fn new(input: &'a mut T, output: &'a mut OutputBuffer) -> Self {
+impl<'a> BlockFixed<'a> {
+    pub fn new(input: &'a mut BitSource, output: &'a mut OutputBuffer) -> Self {
         BlockFixed{ input, output }
     }
 
@@ -20,8 +20,8 @@ impl<'a, T: BitSource> BlockFixed<'a, T> {
     }
 }
 
-impl<'a, T: BitSource> BlockWindow<'a, T> for BlockFixed<'a, T> {
-    fn get_input(&mut self) -> &mut T {
+impl<'a> BlockWindow for BlockFixed<'a> {
+    fn get_input(&mut self) -> &mut BitSource {
         self.input
     }
 
@@ -30,7 +30,7 @@ impl<'a, T: BitSource> BlockWindow<'a, T> for BlockFixed<'a, T> {
     }
 }
 
-impl<'a, T: BitSource> WindowDecoder<'a, T> for BlockFixed<'a, T> {
+impl<'a> WindowDecoder for BlockFixed<'a> {
     fn get_literal(&mut self) -> GzipResult<u32> {
         let base = self.input.get_bits(7)?;
         match base {

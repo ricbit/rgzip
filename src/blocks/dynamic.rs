@@ -12,15 +12,15 @@ struct DynamicHeader {
     HCLEN: u16
 }
 
-pub struct BlockDynamic<'a, T: 'a + BitSource> {
-    input: &'a mut T,
+pub struct BlockDynamic<'a> {
+    input: &'a mut BitSource,
     output: &'a mut OutputBuffer,
     literals: Option<Huffman>,
     distances: Option<Huffman>
 }
 
-impl<'a, T: BitSource> BlockWindow<'a, T> for BlockDynamic<'a, T> {
-    fn get_input(&mut self) -> &mut T {
+impl<'a> BlockWindow for BlockDynamic<'a> {
+    fn get_input(&mut self) -> &mut BitSource {
         self.input
     }
 
@@ -32,8 +32,8 @@ impl<'a, T: BitSource> BlockWindow<'a, T> for BlockDynamic<'a, T> {
 const CODE_LENGTHS_UNSHUFFLE : [usize; 19] =
     [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15];
 
-impl<'a, T: BitSource> BlockDynamic<'a, T> {
-    pub fn new(input: &'a mut T, output: &'a mut OutputBuffer) -> Self {
+impl<'a> BlockDynamic<'a> {
+    pub fn new(input: &'a mut BitSource, output: &'a mut OutputBuffer) -> Self {
         BlockDynamic {
             input,
             output,
@@ -98,7 +98,7 @@ impl<'a, T: BitSource> BlockDynamic<'a, T> {
     }
 }
 
-impl<'a, T: BitSource> WindowDecoder<'a, T> for BlockDynamic<'a, T> {
+impl<'a> WindowDecoder for BlockDynamic<'a> {
     fn get_literal(&mut self) -> GzipResult<u32> {
         let huffman = self.literals.as_ref().ok_or(GzipError::InternalError)?;
         Huffman::get_code(&huffman, self.input)

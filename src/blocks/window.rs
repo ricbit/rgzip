@@ -61,13 +61,12 @@ fn ensure_distances_are_consistent() {
     }
 }
 
-
-pub trait BlockWindow<'a, T: 'a + BitSource> {
-    fn get_input(&mut self) -> &mut T;
+pub trait BlockWindow {
+    fn get_input(&mut self) -> &mut BitSource;
     fn get_output(&mut self) -> &mut OutputBuffer;
 }
 
-pub trait WindowDecoder<'a, T: 'a + BitSource> : BlockWindow<'a, T> {
+pub trait WindowDecoder : BlockWindow {
     fn get_literal(&mut self) -> GzipResult<u32>;
 
     fn get_distance(&mut self) -> GzipResult<u32>;

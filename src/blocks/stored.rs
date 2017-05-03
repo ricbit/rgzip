@@ -9,13 +9,13 @@ struct StoredHeader {
     NLEN: u16
 }
 
-pub struct BlockStored<'a, T: 'a + BitSource> {
-    input: &'a mut T,
+pub struct BlockStored<'a> {
+    input: &'a mut BitSource,
     output: &'a mut OutputBuffer,
 }
 
-impl<'a, T: BitSource> BlockStored<'a, T> {
-    pub fn new(input: &'a mut T, output: &'a mut OutputBuffer) -> Self {
+impl<'a> BlockStored<'a> {
+    pub fn new(input: &'a mut BitSource, output: &'a mut OutputBuffer) -> Self {
         BlockStored{ input, output }
     }
 
