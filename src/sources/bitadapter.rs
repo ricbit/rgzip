@@ -2,19 +2,19 @@ use errors::GzipResult;
 use sources::bytesource::ByteSource;
 use sources::bitsource::BitSource;
 
-pub struct BitAdapter<'a, T: 'a + ByteSource> {
-    data: &'a mut T,
+pub struct BitAdapter<'a> {
+    data: &'a mut ByteSource,
     pos: u8,
     cur: u8
 }
 
-impl<'a, T: ByteSource> BitAdapter<'a, T> {
-    pub fn new(data: &'a mut T) -> Self {
-        BitAdapter::<T>{ data, pos: 0, cur: 0 }
+impl<'a> BitAdapter<'a> {
+    pub fn new(data: &'a mut ByteSource) -> Self {
+        BitAdapter{ data, pos: 0, cur: 0 }
     }
 }
 
-impl<'a, T:ByteSource> BitSource for BitAdapter<'a, T> {
+impl<'a> BitSource for BitAdapter<'a> {
     fn get_bit(&mut self) -> GzipResult<u32> {
         if self.pos == 0 {
             self.cur = try!(self.data.get_u8());
@@ -27,7 +27,7 @@ impl<'a, T:ByteSource> BitSource for BitAdapter<'a, T> {
     }
 }
 
-impl<'a, T:ByteSource> ByteSource for BitAdapter<'a, T> {
+impl<'a> ByteSource for BitAdapter<'a> {
     fn get_u8(&mut self) -> GzipResult<u8> {
         self.pos = 0;
         self.data.get_u8()

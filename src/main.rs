@@ -31,8 +31,9 @@ use blocks::fixed::BlockFixed;
 use blocks::dynamic::BlockDynamic;
 use buffers::outputbuffer::OutputBuffer;
 use buffers::inmemory::InMemoryBuffer;
+use buffers::circular::CircularBuffer;
 use getopts::Options;
-use context::{VERBOSE, SINK, SOURCE};
+use context::{VERBOSE, SINK, SOURCE, BUFFER};
 
 #[allow(non_snake_case)]
 enum GzipHeaderFlags {
@@ -62,14 +63,16 @@ struct BlockHeader {
     BTYPE: u8,
 }
 
-struct GzipDecoder<'a, T: 'a + ByteSource, U: 'a + OutputBuffer> {
-    input: &'a mut T,
-    output: &'a mut U,
+struct GzipDecoder {
+    input: Box<ByteSource>,
+    output: Box<OutputBuffer>,
     header: GzipHeader
 }
 
-impl<'a, T: ByteSource, U: OutputBuffer> GzipDecoder<'a, T, U> {
-    fn decode(input : &mut T, output: &mut U) -> GzipResult<()> {
+impl GzipDecoder {
+    fn decode(input : Box<ByteSource>, output: Box<OutputBuffer>)
+        -> GzipResult<()> {
+
         let mut gzip = GzipDecoder {
             input: input,
             output: output,
@@ -81,17 +84,18 @@ impl<'a, T: ByteSource, U: OutputBuffer> GzipDecoder<'a, T, U> {
     }
 
     fn decode_deflate(&mut self) -> GzipResult<()> {
-        let mut bits = BitAdapter::new(self.input);
+        let mut bits = BitAdapter::new(self.input.as_mut());
         for i in 1.. {
             let header = BlockHeader{
                 BFINAL: bits.get_bit()? as u8,
                 BTYPE: bits.get_bits_rev(2)? as u8,
             };
             verbose!(1, "Block {} is final: {}", i, header.BFINAL > 0);
+            let mut output = self.output.as_mut();
             try!(match header.BTYPE {
-                0 => BlockStored::new(&mut bits, self.output).decode(),
-                1 => BlockFixed::new(&mut bits, self.output).decode(),
-                2 => BlockDynamic::new(&mut bits, self.output).decode(),
+                0 => BlockStored::new(&mut bits, output).decode(),
+                1 => BlockFixed::new(&mut bits, output).decode(),
+                2 => BlockDynamic::new(&mut bits, output).decode(),
                 _ => Err(GzipError::DeflateModeNotSupported),
             });
             if header.BFINAL > 0 {
@@ -184,31 +188,36 @@ impl<'a, T: ByteSource, U: OutputBuffer> GzipDecoder<'a, T, U> {
     }
 }
 
-fn read_gzip<'a>(input: &'a String, output: &'a String) -> GzipResult<()> {
-    let sink_method;
-    let source_method;
-    unsafe {
-        sink_method = SINK;
-        source_method = SOURCE;
-    }
-    let mut sink = match sink_method {
-        0 => Box::new(FileSink::new(output)?) as Box<ByteSink>,
-        1 => Box::new(FileBufSink::new(output)?) as Box<ByteSink>,
-        _ => return Err(GzipError::InternalError)
-    };
-    let mut buffer = InMemoryBuffer::new(sink.as_mut());
-    match source_method {
-        0 => GzipDecoder::decode(
-            &mut VecSource::from_file(input)?,
-            &mut buffer),
-        1 => GzipDecoder::decode(
-            &mut BufferSource::from_file(input)?,
-            &mut buffer),
-        2 => GzipDecoder::decode(
-            &mut VecBufSource::from_file(input)?,
-            &mut buffer),
+fn choose_sink(output: &String) -> GzipResult<Box<ByteSink>> {
+    match get_context!(SINK) {
+        0 => Ok(Box::new(FileSink::new(output)?)),
+        1 => Ok(Box::new(FileBufSink::new(output)?)),
         _ => Err(GzipError::InternalError)
     }
+}
+
+fn choose_buffer(sink: Box<ByteSink>) -> GzipResult<Box<OutputBuffer>> {
+    match get_context!(BUFFER) {
+        0 => Ok(Box::new(InMemoryBuffer::new(sink))),
+        1 => Ok(Box::new(CircularBuffer::new(sink))),
+        _ => Err(GzipError::InternalError)
+    }
+}
+
+fn choose_source(input: &String) -> GzipResult<Box<ByteSource>> {
+    match get_context!(SOURCE) {
+        0 => Ok(Box::new(VecSource::from_file(input)?)),
+        1 => Ok(Box::new(BufferSource::from_file(input)?)),
+        2 => Ok(Box::new(VecBufSource::from_file(input)?)),
+        _ => Err(GzipError::InternalError)
+    }
+}
+
+fn read_gzip<'a>(input: &'a String, output: &'a String) -> GzipResult<()> {
+    let sink = choose_sink(output)?;
+    let buffer = choose_buffer(sink)?;
+    let source  = choose_source(input)?;
+    GzipDecoder::decode(source, buffer)
 }
 
 const USAGE : &str = "Usage: rgzip [flags] input output";
@@ -239,8 +248,9 @@ fn main() {
 
     opts.optopt("v", "verbose", "Verbosity level [0-2]", "v")
         .optopt("s", "source",
-                "Source method 0=VecSource(def) 1=BufferSource 2=VecBufSource", "m")
-        .optopt("k", "sink", "Sink method 0=FileSink 1=FileBufSink(def)", "m")
+                "Source method 0=Vec(def) 1=Buffer 2=VecBuf", "m")
+        .optopt("k", "sink", "Sink method 0=File 1=FileBuf(def)", "m")
+        .optopt("b", "buffer", "Buffer method 0=InMemory 1=Circular(def)", "m")
         .optflag("h", "help", "Show help");
 
     let matches = match opts.parse(&args[1..]) {
@@ -257,6 +267,7 @@ fn main() {
     parse_int_argument!(matches, "v", 2, "Invalid verbose level", VERBOSE);
     parse_int_argument!(matches, "k", 1, "Invalid sink method", SINK);
     parse_int_argument!(matches, "s", 2, "Invalid source method", SOURCE);
+    parse_int_argument!(matches, "b", 1, "Invalid buffer method", BUFFER);
     if matches.free.len() < 2 {
         println!("{}", USAGE);
         return;

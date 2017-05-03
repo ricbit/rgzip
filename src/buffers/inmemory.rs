@@ -3,18 +3,18 @@ use buffers::outputbuffer::OutputBuffer;
 use sinks::bytesink::ByteSink;
 use context::VERBOSE;
 
-pub struct InMemoryBuffer<'a> {
+pub struct InMemoryBuffer {
     buffer: Vec<u8>,
-    output: &'a mut ByteSink
+    output: Box<ByteSink>
 }
 
-impl<'a> InMemoryBuffer<'a> {
-    pub fn new(output: &'a mut ByteSink) -> Self {
+impl InMemoryBuffer {
+    pub fn new(output: Box<ByteSink>) -> Self {
         InMemoryBuffer{ buffer: vec![], output }
     }
 }
 
-impl<'a> OutputBuffer for InMemoryBuffer<'a> {
+impl OutputBuffer for InMemoryBuffer {
     fn put_u8(&mut self, data: u8) -> GzipResult<()> {
         self.buffer.push(data);
         self.output.put_u8(data)
