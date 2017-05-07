@@ -1,16 +1,18 @@
 use std::fs::File;
 use std::io::Write;
 use errors::{GzipResult, GzipError};
-use sinks::bytesink::ByteSink;
+use sinks::bytesink::{ByteSink, ByteSinkProvider};
 
 pub struct FileSink {
     file: File,
 }
 
 impl FileSink {
-    pub fn new(name: &String) -> GzipResult<Self> {
-        let file = File::create(name).or(Err(GzipError::CantCreateFile))?;
-        Ok(FileSink{ file })
+    pub fn provider(name: String) -> ByteSinkProvider {
+        Box::new(move || {
+            let file = File::create(&name).or(Err(GzipError::CantCreateFile))?;
+            Ok(Box::new(FileSink{ file }))
+        })
     }
 }
 
@@ -22,5 +24,4 @@ impl ByteSink for FileSink {
         }
     }
 }
-
 

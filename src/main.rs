@@ -23,7 +23,7 @@ use sources::vecsource::VecSource;
 use sources::bitadapter::BitAdapter;
 use sources::buffersource::BufferSource;
 use sources::vecbufsource::VecBufSource;
-use sinks::bytesink::ByteSink;
+use sinks::bytesink::ByteSinkProvider;
 use sinks::filesink::FileSink;
 use sinks::filebufsink::FileBufSink;
 use blocks::stored::BlockStored;
@@ -32,6 +32,7 @@ use blocks::dynamic::BlockDynamic;
 use buffers::outputbuffer::OutputBuffer;
 use buffers::inmemory::InMemoryBuffer;
 use buffers::circular::CircularBuffer;
+use buffers::channel::ChannelBuffer;
 use getopts::Options;
 use context::{VERBOSE, SINK, SOURCE, BUFFER};
 
@@ -188,18 +189,19 @@ impl GzipDecoder {
     }
 }
 
-fn choose_sink(output: &String) -> GzipResult<Box<ByteSink>> {
+fn choose_sink(output: String) -> GzipResult<ByteSinkProvider> {
     match get_context!(SINK) {
-        0 => Ok(Box::new(FileSink::new(output)?)),
-        1 => Ok(Box::new(FileBufSink::new(output)?)),
+        0 => Ok(FileSink::provider(output)),
+        1 => Ok(FileBufSink::provider(output)),
         _ => Err(GzipError::InternalError)
     }
 }
 
-fn choose_buffer(sink: Box<ByteSink>) -> GzipResult<Box<OutputBuffer>> {
+fn choose_buffer(sink: ByteSinkProvider) -> GzipResult<Box<OutputBuffer>> {
     match get_context!(BUFFER) {
-        0 => Ok(Box::new(InMemoryBuffer::new(sink))),
-        1 => Ok(Box::new(CircularBuffer::new(sink))),
+        0 => Ok(Box::new(InMemoryBuffer::new(sink)?)),
+        1 => Ok(Box::new(CircularBuffer::new(sink)?)),
+        2 => Ok(Box::new(ChannelBuffer::new(sink)?)),
         _ => Err(GzipError::InternalError)
     }
 }
@@ -213,7 +215,7 @@ fn choose_source(input: &String) -> GzipResult<Box<ByteSource>> {
     }
 }
 
-fn read_gzip<'a>(input: &'a String, output: &'a String) -> GzipResult<()> {
+fn read_gzip<'a>(input: &'a String, output: String) -> GzipResult<()> {
     let sink = choose_sink(output)?;
     let buffer = choose_buffer(sink)?;
     let source  = choose_source(input)?;
@@ -250,7 +252,8 @@ fn main() {
         .optopt("s", "source",
                 "Source method 0=Vec(def) 1=Buffer 2=VecBuf", "m")
         .optopt("k", "sink", "Sink method 0=File 1=FileBuf(def)", "m")
-        .optopt("b", "buffer", "Buffer method 0=InMemory 1=Circular(def)", "m")
+        .optopt("b", "buffer", 
+                "Buffer method 0=InMemory 1=Circular(def) 2=Channel", "m")
         .optflag("h", "help", "Show help");
 
     let matches = match opts.parse(&args[1..]) {
@@ -267,16 +270,16 @@ fn main() {
     parse_int_argument!(matches, "v", 2, "Invalid verbose level", VERBOSE);
     parse_int_argument!(matches, "k", 1, "Invalid sink method", SINK);
     parse_int_argument!(matches, "s", 2, "Invalid source method", SOURCE);
-    parse_int_argument!(matches, "b", 1, "Invalid buffer method", BUFFER);
+    parse_int_argument!(matches, "b", 2, "Invalid buffer method", BUFFER);
     if matches.free.len() < 2 {
         println!("{}", USAGE);
         return;
     }
 
     let ref input = matches.free[0];
-    let ref output = matches.free[1];
+    let output : String = matches.free[1].clone();
     println!("Reading from {}, writing to {}", input, output);
-    match read_gzip(&input, &output) {
+    match read_gzip(&input, output) {
         Ok(_) => println!("Finished"),
         Err(error) => println!("Error: {}", error)
     }

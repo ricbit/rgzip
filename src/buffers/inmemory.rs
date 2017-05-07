@@ -1,6 +1,6 @@
 use errors::{GzipResult, GzipError};
 use buffers::outputbuffer::OutputBuffer;
-use sinks::bytesink::ByteSink;
+use sinks::bytesink::{ByteSink, ByteSinkProvider};
 use context::VERBOSE;
 
 pub struct InMemoryBuffer {
@@ -9,8 +9,9 @@ pub struct InMemoryBuffer {
 }
 
 impl InMemoryBuffer {
-    pub fn new(output: Box<ByteSink>) -> Self {
-        InMemoryBuffer{ buffer: vec![], output }
+    pub fn new(provider: ByteSinkProvider) -> GzipResult<Self> {
+        let output = provider()?;
+        Ok(InMemoryBuffer{ buffer: vec![], output })
     }
 }
 
@@ -20,8 +21,8 @@ impl OutputBuffer for InMemoryBuffer {
         self.output.put_u8(data)
     }
 
-    fn put_data(&mut self, data: &mut Vec<u8>) -> GzipResult<()> {
-        self.buffer.append(data);
+    fn put_data(&mut self, data: Vec<u8>) -> GzipResult<()> {
+        self.buffer.extend_from_slice(&data);
         self.output.put_data(data)
     }
 

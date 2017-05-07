@@ -1,6 +1,6 @@
 use errors::{GzipResult, GzipError};
 use buffers::outputbuffer::OutputBuffer;
-use sinks::bytesink::ByteSink;
+use sinks::bytesink::{ByteSink, ByteSinkProvider};
 use context::VERBOSE;
 
 pub struct CircularBuffer {
@@ -11,8 +11,9 @@ pub struct CircularBuffer {
 }
 
 impl CircularBuffer {
-    pub fn new(output: Box<ByteSink>) -> Self {
-        CircularBuffer{ buffer: vec![0; 32768], pos: 0, size: 0, output }
+    pub fn new(provider: ByteSinkProvider) -> GzipResult<Self> {
+        let output = provider()?;
+        Ok(CircularBuffer{ buffer: vec![0; 32768], pos: 0, size: 0, output })
     }
 }
 
@@ -24,7 +25,7 @@ impl OutputBuffer for CircularBuffer {
         self.output.put_u8(data)
     }
 
-    fn put_data(&mut self, data: &mut Vec<u8>) -> GzipResult<()> {
+    fn put_data(&mut self, data: Vec<u8>) -> GzipResult<()> {
         for d in data.iter() {
             self.buffer[self.pos] = *d;
             self.pos = (self.pos + 1) & 32767;

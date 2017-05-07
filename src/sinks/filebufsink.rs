@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::Write;
 use errors::{GzipResult, GzipError};
-use sinks::bytesink::ByteSink;
+use sinks::bytesink::{ByteSink, ByteSinkProvider};
 
 pub struct FileBufSink {
     file: File,
@@ -12,9 +12,11 @@ pub struct FileBufSink {
 const BUFSIZE : usize = 32768;
 
 impl FileBufSink {
-    pub fn new(name: &String) -> GzipResult<Self> {
-        let file = File::create(name).or(Err(GzipError::CantCreateFile))?;
-        Ok(FileBufSink{ file, buffer: vec![0; BUFSIZE], pos: 0 })
+    pub fn provider(name: String) -> ByteSinkProvider {
+        Box::new(move || {
+            let file = File::create(&name).or(Err(GzipError::CantCreateFile))?;
+            Ok(Box::new(FileBufSink{ file, buffer: vec![0; BUFSIZE], pos: 0 }))
+        })
     }
 
     pub fn flush(&mut self, limit: usize) -> GzipResult<()> {
@@ -39,10 +41,10 @@ impl ByteSink for FileBufSink {
         }
     }
 
-    fn put_data(&mut self, data: &mut Vec<u8>) -> GzipResult<()> {
+    fn put_data(&mut self, data: Vec<u8>) -> GzipResult<()> {
         let left = BUFSIZE - self.pos;
         if data.len() <= left {
-            self.buffer[self.pos..self.pos+data.len()].copy_from_slice(data);
+            self.buffer[self.pos..self.pos+data.len()].copy_from_slice(&data);
             self.pos += data.len();
             if self.pos == BUFSIZE {
                 self.flush(BUFSIZE)?;
