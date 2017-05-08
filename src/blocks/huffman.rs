@@ -3,10 +3,9 @@ use errors::{GzipResult, GzipError};
 use context::VERBOSE;
 
 #[derive(Debug)]
-pub struct HuffmanNode {
-    code: Option<u16>,
-    bit0: Option<Box<HuffmanNode>>,
-    bit1: Option<Box<HuffmanNode>>
+pub enum HuffmanNode {
+    Code(u16),
+    Node{bit0: Box<HuffmanNode>, bit1: Box<HuffmanNode>}
 }
 
 pub type Huffman = HuffmanNode;
@@ -53,11 +52,7 @@ impl HuffmanNode {
     fn build_trie(huffman: &HuffmanCode,
                   start: usize, end: usize, mask: u32) -> GzipResult<Self> {
         if start == end {
-            return Ok(HuffmanNode {
-                code: Some(huffman[start].1),
-                bit0: None,
-                bit1: None
-            });
+            return Ok(HuffmanNode::Code(huffman[start].1));
         }
         let mut first = 0;
         for i in start..(end + 1) {
@@ -69,34 +64,24 @@ impl HuffmanNode {
         if first == 0 {
             return Err(GzipError::InternalError);
         }
-        Ok(HuffmanNode {
-            code: None,
-            bit0: Some(Box::new(
-                      Self::build_trie(huffman, start, first - 1, mask << 1)?)),
-            bit1: Some(Box::new(
-                      Self::build_trie(huffman, first, end, mask << 1)?))
+        Ok(HuffmanNode::Node{
+            bit0: Box::new(
+                      Self::build_trie(huffman, start, first - 1, mask << 1)?),
+            bit1: Box::new(
+                      Self::build_trie(huffman, first, end, mask << 1)?)
         })
     }
 
     pub fn get_code(huffman: &Self, input: &mut BitSource) -> GzipResult<u32> {
-        if let Some(code) = huffman.code {
-            Ok(code as u32)
-        } else {
-            let bit = input.get_bit()?;
-            match bit {
-                0 => {
-                    let bit = huffman.bit0
-                        .as_ref()
-                        .ok_or(GzipError::InternalError)?;
-                    Self::get_code(bit, input)
-                },
-                1 => {
-                    let bit = huffman.bit1
-                        .as_ref()
-                        .ok_or(GzipError::InternalError)?;
-                    Self::get_code(bit, input)
+        match *huffman {
+            HuffmanNode::Code(code) => Ok(code as u32),
+            HuffmanNode::Node{ref bit0, ref bit1} => {
+                let bit = input.get_bit()?;
+                match bit {
+                    0 => Self::get_code(bit0.as_ref(), input),
+                    1 => Self::get_code(bit1.as_ref(), input),
+                    _ => unreachable!()
                 }
-                _ => Err(GzipError::InternalError)
             }
         }
     }
