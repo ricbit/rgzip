@@ -17,13 +17,8 @@ impl<'a> BitAdapter<'a> {
 impl<'a> BitSource for BitAdapter<'a> {
     fn get_bit(&mut self) -> GzipResult<u32> {
         if self.pos == 0 {
-            if let Ok(data) = self.data.get_u64() {
-                self.cur = data;
-                self.pos = 64;
-            } else {
-                self.cur = try!(self.data.get_u8()) as u64;
-                self.pos = 8;
-            }
+            self.cur = try!(self.data.get_u8()) as u64;
+            self.pos = 8;
         }
         let ans = self.cur & 1;
         self.cur >>= 1;

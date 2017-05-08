@@ -30,6 +30,21 @@ impl<'a> BitSource for WideAdapter<'a> {
         self.pos -= 1;
         Ok(ans as u32)
     }
+
+    fn get_bits_rev(&mut self, size: u8) -> GzipResult<u32> {
+        if size > self.pos {
+            let mut ans : u32 = 0;
+            for i in 0..size {
+                ans |= try!(self.get_bit()) << i;
+            }
+            Ok(ans)
+        } else {
+            let ans = self.cur & ((1 << size) - 1);
+            self.cur >>= size;
+            self.pos -= size;
+            Ok(ans as u32)
+        }
+    }
 }
 
 impl<'a> ByteSource for WideAdapter<'a> {
