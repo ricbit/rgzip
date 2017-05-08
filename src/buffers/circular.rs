@@ -2,6 +2,7 @@ use errors::{GzipResult, GzipError};
 use buffers::outputbuffer::OutputBuffer;
 use sinks::bytesink::{ByteSink, ByteSinkProvider};
 use context::VERBOSE;
+use std::ptr;
 
 pub struct CircularBuffer {
     buffer: Vec<u8>,
@@ -41,13 +42,21 @@ impl OutputBuffer for CircularBuffer {
             return Err(GzipError::InvalidDeflateStream);
         }
         let index : usize = self.pos + 32768 - distance;
-        verbose!(2, "window char: ");
-        for i in 0..length {
-            let data = self.buffer[(index + i as usize) & 32767];
-            verbose!(2, "-- {}", data as u8 as char);
-            self.buffer[self.pos] = data;
-            self.pos = (self.pos + 1) & 32767;
-            self.output.put_u8(data)?;
+        if index + distance < 32768 && self.pos + distance < 32768 {
+            let begin = self.buffer.as_mut_ptr();
+            unsafe {
+                ptr::copy(
+                    begin.offset(index as isize),
+                    begin.offset(self.pos as isize),
+                    distance);
+            }
+        } else {
+            for i in 0..length {
+                let data = self.buffer[(index + i as usize) & 32767];
+                self.buffer[self.pos] = data;
+                self.pos = (self.pos + 1) & 32767;
+                self.output.put_u8(data)?;
+            }
         }
         self.size += length as usize;
         Ok(())
