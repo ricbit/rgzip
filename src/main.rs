@@ -257,11 +257,11 @@ fn main() {
 
     opts.optopt("v", "verbose", "Verbosity level [0-2]", "v")
         .optopt("s", "source",
-                "Source method 0=Vec(def) 1=Buffer 2=VecBuf 3=Wide", "m")
+                "Source method 0=Vec 1=Buffer 2=VecBuf 3=Wide(def)", "m")
         .optopt("k", "sink", "Sink method 0=File 1=FileBuf(def)", "m")
         .optopt("b", "buffer", 
                 "Buffer method 0=InMemory 1=Circular(def) 2=Channel", "m")
-        .optopt("a", "adapter", "Adapter method 0=Bit(def) 1=Wide", "m")
+        .optopt("a", "adapter", "Adapter method 0=Bit 1=Wide(def)", "m")
         .optflag("h", "help", "Show help");
 
     let matches = match opts.parse(&args[1..]) {
