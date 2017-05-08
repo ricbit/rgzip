@@ -1,6 +1,5 @@
 use sources::bitsource::BitSource;
 use errors::{GzipResult, GzipError};
-use context::VERBOSE;
 
 #[derive(Debug)]
 pub enum HuffmanNode {
@@ -13,7 +12,7 @@ pub type Huffman = HuffmanNode;
 type HuffmanCode = Vec<(u8, u16, u32)>;
 
 impl HuffmanNode {
-   pub fn build(codes : Vec<u8>) -> GzipResult<Self> {
+    pub fn build(codes : Vec<u8>) -> GzipResult<Self> {
         let max = (1 + codes.iter().max().unwrap()) as usize;
         let mut bit_count = vec![0; max];
         for i in &codes {
@@ -35,8 +34,20 @@ impl HuffmanNode {
             next_count[*bits as usize] += 1;
         }
         huffman.sort();
-        verbose!(2, "huffman {:?}", huffman);
         Self::build_trie(&huffman, 0, huffman.len() - 1, 1)
+    }
+
+    pub fn print(tree: &Self, prefix: String) -> String {
+        match *tree {
+            HuffmanNode::Code(code) => {
+                format!("{} : {}", prefix, code)
+            }, 
+            HuffmanNode::Node{ref bit0, ref bit1} => {
+                format!("{}\n{}",
+                    HuffmanNode::print(bit0.as_ref(), prefix.clone() + "0"),
+                    HuffmanNode::print(bit1.as_ref(), prefix.clone() + "1"))
+            }
+        }
     }
 
     fn reverse_bits(value : u32, bits: u8) -> u32 {

@@ -60,8 +60,18 @@ impl<'a> BlockDynamic<'a> {
         let mut huff_lengths = self.decode_lengths(&code_huffman, size)?;
         self.distances = Some(Huffman::build(
             huff_lengths.split_off(header.HLIT as usize))?);
+        self.print_tree(&self.distances);
         self.literals = Some(Huffman::build(huff_lengths)?);
+        self.print_tree(&self.literals);
         self.window_decode()
+    }
+
+    fn print_tree(&self, tree: &Option<Huffman>) {
+        if get_context!(VERBOSE) >= 2 {
+            verbose!(2, "literals\n{}",
+                     Huffman::print(
+                         tree.as_ref().unwrap(), "".to_string()));
+        }
     }
 
     fn decode_lengths(&mut self, code_huffman: &Huffman, size: usize)
