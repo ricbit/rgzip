@@ -15,8 +15,13 @@ struct DynamicHeader {
 pub struct BlockDynamic<'a> {
     input: &'a mut BitSource,
     output: &'a mut OutputBuffer,
-    literals: Option<Huffman>,
-    distances: Option<Huffman>
+    literals: Huffman,
+    distances: Huffman
+}
+
+pub struct BlockDynamicBuilder<'a> {
+    input: &'a mut BitSource,
+    output: &'a mut OutputBuffer,
 }
 
 impl<'a> BlockWindow for BlockDynamic<'a> {
@@ -33,15 +38,14 @@ const CODE_LENGTHS_UNSHUFFLE : [usize; 19] =
     [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15];
 
 impl<'a> BlockDynamic<'a> {
-    pub fn new(input: &'a mut BitSource, output: &'a mut OutputBuffer) -> Self {
-        BlockDynamic {
-            input,
-            output,
-            literals: None,
-            distances: None
-        }
-    }
+    pub fn new(input: &'a mut BitSource, output: &'a mut OutputBuffer)
+        ->  BlockDynamicBuilder<'a> {
 
+        BlockDynamicBuilder{ input, output }
+    }
+}
+
+impl<'a> BlockDynamicBuilder<'a> {
     pub fn decode(&mut self) -> GzipResult<()> {
         let header = DynamicHeader {
             HLIT: 257 + self.input.get_bits_rev(5)? as u16,
@@ -58,19 +62,24 @@ impl<'a> BlockDynamic<'a> {
         let code_huffman = Huffman::build(code_lengths)?;
         let size = (header.HLIT + header.HDIST) as usize;
         let mut huff_lengths = self.decode_lengths(&code_huffman, size)?;
-        self.distances = Some(Huffman::build(
-            huff_lengths.split_off(header.HLIT as usize))?);
-        self.print_tree(&self.distances);
-        self.literals = Some(Huffman::build(huff_lengths)?);
-        self.print_tree(&self.literals);
-        self.window_decode()
+        let distances = Huffman::build(
+            huff_lengths.split_off(header.HLIT as usize))?;
+        self.print_tree(&distances);
+        let literals = Huffman::build(huff_lengths)?;
+        self.print_tree(&literals);
+        let mut decoder = BlockDynamic {
+            input: self.input,
+            output: self.output,
+            literals,
+            distances };
+        decoder.window_decode()
     }
 
-    fn print_tree(&self, tree: &Option<Huffman>) {
+    fn print_tree(&self, tree: &Huffman) {
         if get_context!(VERBOSE) >= 2 {
             verbose!(2, "literals\n{}",
                      Huffman::print(
-                         tree.as_ref().unwrap(), "".to_string()));
+                         tree, "".to_string()));
         }
     }
 
@@ -110,13 +119,11 @@ impl<'a> BlockDynamic<'a> {
 
 impl<'a> WindowDecoder for BlockDynamic<'a> {
     fn get_literal(&mut self) -> GzipResult<u32> {
-        let huffman = self.literals.as_ref().ok_or(GzipError::InternalError)?;
-        Huffman::get_code(&huffman, self.input)
+        Huffman::get_code(&self.literals, self.input)
     }
 
     fn get_distance(&mut self) -> GzipResult<u32> {
-        let huffman = self.distances.as_ref().ok_or(GzipError::InternalError)?;
-        Huffman::get_code(&huffman, self.input)
+        Huffman::get_code(&self.distances, self.input)
     }
 }
 
