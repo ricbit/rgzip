@@ -18,7 +18,7 @@ impl ByteSource for BufferSource {
 }
 
 impl BufferSource {
-    pub fn from_file(name: &String) -> GzipResult<Self> {
+    pub fn from_file(name: &str) -> GzipResult<Self> {
         use GzipError::*;
         let file = File::open(name).or(Err(CantOpenFile))?;
         Ok(BufferSource{ file: BufReader::new(file).bytes() })

@@ -172,7 +172,7 @@ impl GzipDecoder {
                 self.header.original_name = Some(name);
             }
         }
-        return Ok(());
+        Ok(())
     }
 
     fn translate_os(&self) -> &'static str {
@@ -214,7 +214,7 @@ fn choose_buffer(sink: ByteSinkProvider) -> GzipResult<Box<OutputBuffer>> {
     }
 }
 
-fn choose_source(input: &String) -> GzipResult<Box<ByteSource>> {
+fn choose_source(input: &str) -> GzipResult<Box<ByteSource>> {
     match get_context!(SOURCE) {
         0 => Ok(Box::new(VecSource::from_file(input)?)),
         1 => Ok(Box::new(BufferSource::from_file(input)?)),
@@ -224,7 +224,7 @@ fn choose_source(input: &String) -> GzipResult<Box<ByteSource>> {
     }
 }
 
-fn read_gzip<'a>(input: &'a String, output: String) -> GzipResult<()> {
+fn read_gzip(input: &str, output: String) -> GzipResult<()> {
     let sink = choose_sink(output)?;
     let buffer = choose_buffer(sink)?;
     let source  = choose_source(input)?;
@@ -288,10 +288,10 @@ fn main() {
         return;
     }
 
-    let ref input = matches.free[0];
+    let input = &matches.free[0];
     let output : String = matches.free[1].clone();
     println!("Reading from {}, writing to {}", input, output);
-    match read_gzip(&input, output) {
+    match read_gzip(input, output) {
         Ok(_) => println!("Finished"),
         Err(error) => println!("Error: {}", error)
     }

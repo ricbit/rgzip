@@ -39,8 +39,7 @@ const CODE_LENGTHS_UNSHUFFLE : [usize; 19] =
 
 impl<'a> BlockDynamic<'a> {
     pub fn new(input: &'a mut BitSource, output: &'a mut OutputBuffer)
-        ->  BlockDynamicBuilder<'a> {
-
+            -> BlockDynamicBuilder<'a> {
         BlockDynamicBuilder{ input, output }
     }
 }
@@ -89,7 +88,7 @@ impl<'a> BlockDynamicBuilder<'a> {
         let mut huff_lengths: Vec<u8> = vec![];
         let mut previous : Option<u8> = None;
         while huff_lengths.len() < size {
-            match Huffman::get_code(&code_huffman, self.input)? as u8 {
+            match Huffman::get_code(code_huffman, self.input)? as u8 {
                 c @ 0...15 => {
                     huff_lengths.push(c);
                     previous = Some(c);
