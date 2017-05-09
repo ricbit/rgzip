@@ -32,7 +32,7 @@ impl OutputBuffer for CopyBuffer {
             self.pos = (self.pos + 1) & 32767;
         }
         self.size += data.len();
-        self.output.put_data(data)
+        self.output.put_data(&data)
     }
 
     fn copy_window(&mut self, distance: u32, length: u32) -> GzipResult<()> {
@@ -50,7 +50,7 @@ impl OutputBuffer for CopyBuffer {
                     begin.offset(self.pos as isize),
                     distance);
             }
-            self.output.put_data(self.buffer[self.pos..self.pos+distance].to_vec())?;
+            self.output.put_data(&self.buffer[self.pos..self.pos+distance])?;
         } else {
             for i in 0..length {
                 let data = self.buffer[(index + i as usize) & 32767];

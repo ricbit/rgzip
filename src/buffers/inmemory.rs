@@ -23,7 +23,7 @@ impl OutputBuffer for InMemoryBuffer {
 
     fn put_data(&mut self, data: Vec<u8>) -> GzipResult<()> {
         self.buffer.extend_from_slice(&data);
-        self.output.put_data(data)
+        self.output.put_data(&data)
     }
 
     fn copy_window(&mut self, distance: u32, length: u32) -> GzipResult<()> {

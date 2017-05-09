@@ -41,7 +41,7 @@ impl ByteSink for FileBufSink {
         }
     }
 
-    fn put_data(&mut self, data: Vec<u8>) -> GzipResult<()> {
+    fn put_data(&mut self, data: &[u8]) -> GzipResult<()> {
         let left = BUFSIZE - self.pos;
         if data.len() <= left {
             self.buffer[self.pos..self.pos+data.len()].copy_from_slice(&data);

@@ -97,7 +97,7 @@ impl ReceiverBuffer {
             self.pos = (self.pos + 1) & 32767;
         }
         self.size += data.len();
-        self.output.put_data(data)
+        self.output.put_data(&data)
     }
 
     fn copy_window(&mut self, distance: u32, length: u32) -> GzipResult<()> {
