@@ -29,34 +29,28 @@ impl OutputBuffer for CopyBuffer {
         Ok(())
     }
 
-    fn put_data(&mut self, data: Vec<u8>) -> GzipResult<()> {
-        // TODO: split in 32kb slices.
-        for d in data.iter() {
-            self.buffer[self.pos] = *d;
-            self.pos = (self.pos + 1) & 32767;
-        }
-        self.size += data.len();
-        self.output.put_data(&data)
-    }
-
     fn copy_window(&mut self, distance: u32, length: u32) -> GzipResult<()> {
         let distance = distance as usize;
+        let length = length as usize;
         if distance > self.size {
-            println!("d {} {}", distance, self.size);
             return Err(GzipError::InvalidDeflateStream);
         }
-        let index : usize = self.pos + 32768 - distance;
-        if index + distance < 32768 && self.pos + distance < 32768 {
+        if self.pos >= distance &&
+            self.pos + length < 32767 &&
+            distance > length {
+
             let begin = self.buffer.as_mut_ptr();
             unsafe {
-                ptr::copy(
-                    begin.offset(index as isize),
+                ptr::copy_nonoverlapping(
+                    begin.offset((self.pos - distance) as isize),
                     begin.offset(self.pos as isize),
-                    distance);
+                    length);
             }
+            self.pos += length;
         } else {
+            let index : usize = self.pos + 32768 - distance;
             for i in 0..length {
-                let data = self.buffer[(index + i as usize) & 32767];
+                let data = self.buffer[(index + i) & 32767];
                 self.buffer[self.pos] = data;
                 self.pos += 1;
                 if self.pos >= 32768 {
