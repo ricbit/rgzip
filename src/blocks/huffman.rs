@@ -66,10 +66,10 @@ impl HuffmanNode {
         if start == end {
             return Ok(HuffmanNode::Code(huffman[start].1));
         }
-        let first = huffman[start..(end + 1)].iter().position(|x| x.2 & mask > 0).unwrap_or(0);
-        if first == 0 {
-            return Err(GzipError::InternalError);
-        }
+        let first = start + huffman[start..(end + 1)]
+            .iter()
+            .position(|x| x.2 & mask > 0)
+            .ok_or(GzipError::InternalError)?;
         Ok(HuffmanNode::Node{
             bit0: Box::new(
                       Self::build_trie(huffman, start, first - 1, mask << 1)?),
