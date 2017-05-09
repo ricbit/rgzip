@@ -35,6 +35,7 @@ use buffers::outputbuffer::OutputBuffer;
 use buffers::inmemory::InMemoryBuffer;
 use buffers::circular::CircularBuffer;
 use buffers::channel::ChannelBuffer;
+use buffers::copy::CopyBuffer;
 use getopts::Options;
 use context::{VERBOSE, SINK, SOURCE, BUFFER, ADAPTER};
 
@@ -208,6 +209,7 @@ fn choose_buffer(sink: ByteSinkProvider) -> GzipResult<Box<OutputBuffer>> {
         0 => Ok(Box::new(InMemoryBuffer::new(sink)?)),
         1 => Ok(Box::new(CircularBuffer::new(sink)?)),
         2 => Ok(Box::new(ChannelBuffer::new(sink)?)),
+        3 => Ok(Box::new(CopyBuffer::new(sink)?)),
         _ => Err(GzipError::InternalError)
     }
 }
@@ -260,7 +262,8 @@ fn main() {
                 "Source method 0=Vec 1=Buffer 2=VecBuf 3=Wide(def)", "m")
         .optopt("k", "sink", "Sink method 0=File 1=FileBuf(def)", "m")
         .optopt("b", "buffer", 
-                "Buffer method 0=InMemory 1=Circular(def) 2=Channel", "m")
+                "Buffer method 0=InMemory 1=Circular(def) \
+                2=Channel 3=Copy", "m")
         .optopt("a", "adapter", "Adapter method 0=Bit 1=Wide(def)", "m")
         .optflag("h", "help", "Show help");
 
@@ -278,7 +281,7 @@ fn main() {
     parse_int_argument!(matches, "v", 2, "Invalid verbose level", VERBOSE);
     parse_int_argument!(matches, "k", 1, "Invalid sink method", SINK);
     parse_int_argument!(matches, "s", 3, "Invalid source method", SOURCE);
-    parse_int_argument!(matches, "b", 2, "Invalid buffer method", BUFFER);
+    parse_int_argument!(matches, "b", 3, "Invalid buffer method", BUFFER);
     parse_int_argument!(matches, "a", 1, "Invalid adapter method", ADAPTER);
     if matches.free.len() < 2 {
         println!("{}", USAGE);
