@@ -23,5 +23,12 @@ impl ByteSink for FileSink {
             _ => Ok(())
         }
     }
+
+    fn put_data(&mut self, data: &[u8]) -> GzipResult<()> {
+        match self.file.write(data) {
+            Ok(0) | Err(_) => Err(GzipError::CantWriteFile),
+            _ => Ok(())
+        }
+    }
 }
 

@@ -1,7 +1,6 @@
 use errors::{GzipResult, GzipError};
 use buffers::outputbuffer::OutputBuffer;
 use sinks::bytesink::{ByteSink, ByteSinkProvider};
-use context::VERBOSE;
 use std::ptr;
 
 pub struct CopyBuffer {
@@ -21,12 +20,17 @@ impl CopyBuffer {
 impl OutputBuffer for CopyBuffer {
     fn put_u8(&mut self, data: u8) -> GzipResult<()> {
         self.buffer[self.pos] = data;
-        self.pos = (self.pos + 1) & 32767;
         self.size += 1;
-        self.output.put_u8(data)
+        self.pos += 1;
+        if self.pos >= 32768 {
+            self.pos = 0;
+            self.output.put_data(&self.buffer)?;
+        }
+        Ok(())
     }
 
     fn put_data(&mut self, data: Vec<u8>) -> GzipResult<()> {
+        // TODO: split in 32kb slices.
         for d in data.iter() {
             self.buffer[self.pos] = *d;
             self.pos = (self.pos + 1) & 32767;
@@ -50,13 +54,15 @@ impl OutputBuffer for CopyBuffer {
                     begin.offset(self.pos as isize),
                     distance);
             }
-            self.output.put_data(&self.buffer[self.pos..self.pos+distance])?;
         } else {
             for i in 0..length {
                 let data = self.buffer[(index + i as usize) & 32767];
                 self.buffer[self.pos] = data;
-                self.pos = (self.pos + 1) & 32767;
-                self.output.put_u8(data)?;
+                self.pos += 1;
+                if self.pos >= 32768 {
+                    self.pos = 0;
+                    self.output.put_data(&self.buffer)?;
+                }
             }
         }
         self.size += length as usize;
@@ -64,4 +70,8 @@ impl OutputBuffer for CopyBuffer {
     }
 }
 
-
+impl Drop for CopyBuffer {
+    fn drop(&mut self) {
+        self.output.put_data(&self.buffer[0..self.pos]).unwrap();
+    }
+}
