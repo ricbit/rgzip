@@ -27,7 +27,7 @@ impl ByteSource for VecBufSource {
 }
 
 impl VecBufSource {
-    pub fn from_file(name: &String) -> GzipResult<Self> {
+    pub fn from_file(name: &str) -> GzipResult<Self> {
         use GzipError::*;
         let data = vec![0; SIZE];
         let file = File::open(name).or(Err(CantOpenFile))?;

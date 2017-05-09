@@ -26,7 +26,7 @@ impl OutputBuffer for CircularBuffer {
     }
 
     fn put_data(&mut self, data: Vec<u8>) -> GzipResult<()> {
-        for d in data.iter() {
+        for d in &data {
             self.buffer[self.pos] = *d;
             self.pos = (self.pos + 1) & 32767;
         }

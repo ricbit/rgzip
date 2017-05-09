@@ -21,7 +21,7 @@ impl ByteSource for VecSource {
 }
 
 impl VecSource {
-    pub fn from_file(name: &String) -> GzipResult<Self> {
+    pub fn from_file(name: &str) -> GzipResult<Self> {
         use GzipError::*;
         let mut data = vec![];
         let mut file = File::open(name).or(Err(CantOpenFile))?;

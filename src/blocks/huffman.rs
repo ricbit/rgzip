@@ -10,6 +10,7 @@ pub enum HuffmanNode {
 pub type Huffman = HuffmanNode;
 
 type HuffmanCode = Vec<(u8, u16, u32)>;
+type HuffmanSlice = [(u8, u16, u32)];
 
 impl HuffmanNode {
     pub fn build(codes : Vec<u8>) -> GzipResult<Self> {
@@ -60,18 +61,12 @@ impl HuffmanNode {
         ans
     }
 
-    fn build_trie(huffman: &HuffmanCode,
+    fn build_trie(huffman: &HuffmanSlice,
                   start: usize, end: usize, mask: u32) -> GzipResult<Self> {
         if start == end {
             return Ok(HuffmanNode::Code(huffman[start].1));
         }
-        let mut first = 0;
-        for i in start..(end + 1) {
-            if huffman[i].2 & mask > 0 {
-                first = i;
-                break;
-            }
-        }
+        let first = huffman[start..(end + 1)].iter().position(|x| x.2 & mask > 0).unwrap_or(0);
         if first == 0 {
             return Err(GzipError::InternalError);
         }
