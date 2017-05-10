@@ -79,16 +79,19 @@ impl HuffmanNode {
     }
 
     pub fn get_code(huffman: &Self, input: &mut BitSource) -> GzipResult<u32> {
-        match *huffman {
-            HuffmanNode::Code(code) => Ok(code as u32),
-            HuffmanNode::Node{ref bit0, ref bit1} => {
-                let bit = input.get_bit()?;
-                match bit {
-                    0 => Self::get_code(bit0.as_ref(), input),
-                    1 => Self::get_code(bit1.as_ref(), input),
-                    _ => unreachable!()
-                }
+        let mut node = huffman;
+        while let &HuffmanNode::Node{ref bit0, ref bit1} = node {
+            let bit = input.get_bit()?;
+            node = match bit {
+                0 => bit0.as_ref(),
+                1 => bit1.as_ref(),
+                _ => unreachable!()
             }
+        }
+        if let &HuffmanNode::Code(code) = node {
+            Ok(code as u32)
+        } else {
+            Err(GzipError::InternalError)
         }
     }
 }
