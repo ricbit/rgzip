@@ -277,6 +277,7 @@ fn main() {
 
     if matches.opt_present("h") {
         println!("{}", opts.usage(USAGE));
+        return;
     }
     parse_int_argument!(matches, "v", 2, "Invalid verbose level", VERBOSE);
     parse_int_argument!(matches, "k", 1, "Invalid sink method", SINK);
