@@ -4,7 +4,7 @@ use errors::{GzipResult, GzipError};
 #[derive(Debug)]
 pub enum HuffmanNode {
     Code(u16),
-    Node{bit0: Box<HuffmanNode>, bit1: Box<HuffmanNode>}
+    Node{bits: u8, nodes: Vec<Box<HuffmanNode>>}
 }
 
 pub type Huffman = HuffmanNode;
@@ -35,23 +35,10 @@ impl HuffmanNode {
             next_count[*bits as usize] += 1;
         }
         huffman.sort();
-        Self::build_trie(&huffman, 0, huffman.len() - 1, 1)
+        Self::build_trie(&huffman, 0, huffman.len() - 1, 0)
     }
 
-    pub fn print(tree: &Self, prefix: String) -> String {
-        match *tree {
-            HuffmanNode::Code(code) => {
-                format!("{} : {}", prefix, code)
-            }, 
-            HuffmanNode::Node{ref bit0, ref bit1} => {
-                format!("{}\n{}",
-                    HuffmanNode::print(bit0.as_ref(), prefix.clone() + "0"),
-                    HuffmanNode::print(bit1.as_ref(), prefix.clone() + "1"))
-            }
-        }
-    }
-
-    fn reverse_bits(value : u32, bits: u8) -> u32 {
+   fn reverse_bits(value : u32, bits: u8) -> u32 {
         let mut ans = 0;
         let mut value = value;
         for _ in 0..bits {
@@ -62,31 +49,50 @@ impl HuffmanNode {
     }
 
     fn build_trie(huffman: &HuffmanSlice,
-                  start: usize, end: usize, mask: u32) -> GzipResult<Self> {
+                  start: usize, end: usize, right: u16) -> GzipResult<Self> {
         if start == end {
             return Ok(HuffmanNode::Code(huffman[start].1));
         }
-        let first = start + huffman[start..(end + 1)]
-            .iter()
-            .position(|x| x.2 & mask > 0)
-            .ok_or(GzipError::InternalError)?;
-        Ok(HuffmanNode::Node{
-            bit0: Box::new(
-                      Self::build_trie(huffman, start, first - 1, mask << 1)?),
-            bit1: Box::new(
-                      Self::build_trie(huffman, first, end, mask << 1)?)
-        })
+
+        let smallest = huffman[start].0 as u16;
+        let size = smallest - right;
+        let mut nodes : Vec<(u32, Box<HuffmanNode>)> = vec![];
+        let mask = ((1 << size) - 1) << right;
+
+        for i in 0..(1 << size) {
+            let reverse_i = Self::reverse_bits(i, size as u8) << right;
+            let newstart = start + huffman[start..(end + 1)]
+                .iter()
+                .position(|x| x.2 & mask == reverse_i)
+                .ok_or(GzipError::InternalError)?;
+            let newend = newstart + huffman[newstart..(end + 1)]
+                .iter()
+                .position(|x| x.2 & mask != reverse_i)
+                .unwrap_or(end - newstart + 1);
+            nodes.push((i, Box::new(
+                Self::build_trie(
+                    huffman, newstart, newend - 1, right + size)?)));
+        }
+        let mut reversed : Vec<Box<HuffmanNode>>= vec![];
+        for i in 0..(1 << size) {
+            let reverse_i = Self::reverse_bits(i, size as u8);
+            let index = nodes
+                .iter()
+                .position(|&(x, _)| x == reverse_i)
+                .ok_or(GzipError::InternalError)?;
+            let (_, node) = nodes.swap_remove(index as usize);
+            reversed.push(node);
+        }
+        Ok(HuffmanNode::Node{ bits: size as u8, nodes: reversed })
     }
 
-    pub fn get_code(huffman: &Self, input: &mut BitSource) -> GzipResult<u32> {
+    pub fn get_code(huffman: &Self, input: &mut BitSource)
+        -> GzipResult<u32> {
+
         let mut node = huffman;
-        while let &HuffmanNode::Node{ref bit0, ref bit1} = node {
-            let bit = input.get_bit()?;
-            node = match bit {
-                0 => bit0.as_ref(),
-                1 => bit1.as_ref(),
-                _ => unreachable!()
-            }
+        while let &HuffmanNode::Node{bits, ref nodes} = node {
+            let bits = input.get_bits_rev(bits)?;
+            node = nodes[bits as usize].as_ref();
         }
         if let &HuffmanNode::Code(code) = node {
             Ok(code as u32)

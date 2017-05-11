@@ -76,9 +76,9 @@ impl<'a> BlockDynamicBuilder<'a> {
 
     fn print_tree(&self, tree: &Huffman) {
         if get_context!(VERBOSE) >= 2 {
-            verbose!(2, "literals\n{}",
+            /*verbose!(2, "literals\n{}",
                      Huffman::print(
-                         tree, "".to_string()));
+                         tree, "".to_string()));*/
         }
     }
 

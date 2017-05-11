@@ -290,7 +290,7 @@ fn main() {
     }
 
     let input = &matches.free[0];
-    let output : String = matches.free[1].clone();
+    let output = matches.free[1].clone();
     println!("Reading from {}, writing to {}", input, output);
     match read_gzip(input, output) {
         Ok(_) => println!("Finished"),
