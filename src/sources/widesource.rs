@@ -1,5 +1,6 @@
 use std::io::prelude::*;
 use std::fs::File;
+use std::mem::transmute;
 use errors::{GzipResult, GzipError};
 use sources::bytesource::ByteSource;
 
@@ -21,10 +22,8 @@ impl ByteSource for WideSource {
 
     fn get_u64(&mut self) -> GzipResult<u64> {
         if self.pos + 8 < self.data.len() {
-            let mut ans : u64 = 0;
-            for i in 0..8 {
-                ans |= (self.data[self.pos + i] as u64) << (8 * i);
-            }
+            let small = &self.data[self.pos..self.pos + 8];
+            let ans = unsafe { transmute::<&[u8], &[u64]>(small)[0].to_le() };
             self.pos += 8;
             Ok(ans)
         } else {
