@@ -9,6 +9,7 @@ authors = [ "Ricardo Bittencourt <bluepenguin@gmail.com>" ]
 time = "0.1"
 encoding = "0.2.33"
 getopts = "0.2"
+memmap = "0.5.2"
 
 [profile.release]
 debug = true

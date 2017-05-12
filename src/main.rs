@@ -4,6 +4,7 @@
 extern crate time;
 extern crate encoding;
 extern crate getopts;
+extern crate memmap;
 
 #[macro_use]
 mod context;
@@ -25,6 +26,7 @@ use sources::widesource::WideSource;
 use sources::wideadapter::WideAdapter;
 use sources::buffersource::BufferSource;
 use sources::vecbufsource::VecBufSource;
+use sources::mapsource::MapSource;
 use sinks::bytesink::ByteSinkProvider;
 use sinks::filesink::FileSink;
 use sinks::filebufsink::FileBufSink;
@@ -220,6 +222,7 @@ fn choose_source(input: &str) -> GzipResult<Box<ByteSource>> {
         1 => Ok(Box::new(BufferSource::from_file(input)?)),
         2 => Ok(Box::new(VecBufSource::from_file(input)?)),
         3 => Ok(Box::new(WideSource::from_file(input)?)),
+        4 => Ok(Box::new(MapSource::from_file(input)?)),
         _ => Err(GzipError::InternalError)
     }
 }
@@ -263,7 +266,7 @@ fn main() {
         .optopt("k", "sink", "Sink method 0=File(def) 1=FileBuf", "m")
         .optopt("b", "buffer", 
                 "Buffer method 0=InMemory 1=Circular \
-                2=Channel 3=Copy(def)", "m")
+                2=Channel 3=Copy(def) 4=Map", "m")
         .optopt("a", "adapter", "Adapter method 0=Bit 1=Wide(def)", "m")
         .optflag("h", "help", "Show help");
 
@@ -281,7 +284,7 @@ fn main() {
     }
     parse_int_argument!(matches, "v", 2, "Invalid verbose level", VERBOSE);
     parse_int_argument!(matches, "k", 1, "Invalid sink method", SINK);
-    parse_int_argument!(matches, "s", 3, "Invalid source method", SOURCE);
+    parse_int_argument!(matches, "s", 4, "Invalid source method", SOURCE);
     parse_int_argument!(matches, "b", 3, "Invalid buffer method", BUFFER);
     parse_int_argument!(matches, "a", 1, "Invalid adapter method", ADAPTER);
     if matches.free.len() < 2 {

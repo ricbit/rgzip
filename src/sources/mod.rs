@@ -6,3 +6,4 @@ pub mod vecbufsource;
 pub mod bitadapter;
 pub mod wideadapter;
 pub mod widesource;
+pub mod mapsource;
