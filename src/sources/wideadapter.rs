@@ -21,7 +21,7 @@ impl<'a> BitSource for WideAdapter<'a> {
                 self.cur = data;
                 self.pos = 64;
             } else {
-                self.cur = try!(self.data.get_u8()) as u64;
+                self.cur = self.data.get_u8()? as u64;
                 self.pos = 8;
             }
         }
@@ -32,7 +32,20 @@ impl<'a> BitSource for WideAdapter<'a> {
     }
 
     fn get_bits_rev(&mut self, size: u8) -> GzipResult<u32> {
-        if size > self.pos && self.pos > 0 {
+        if size <= self.pos {
+            let ans = self.cur & ((1 << size) - 1);
+            self.cur >>= size;
+            self.pos -= size;
+            Ok(ans as u32)
+        } else {
+            self.get_bits_rev_slow(size)
+        }
+    }
+}
+
+impl<'a> WideAdapter<'a> {
+    fn get_bits_rev_slow(&mut self, size: u8) -> GzipResult<u32> {
+        if self.pos > 0 {
             if let Ok(data) = self.data.get_u64() {
                 let mut ans = self.cur;
                 let left = size - self.pos;
@@ -42,18 +55,11 @@ impl<'a> BitSource for WideAdapter<'a> {
                 return Ok(ans as u32);
             }
         }
-        if self.pos > 0 {
-            let ans = self.cur & ((1 << size) - 1);
-            self.cur >>= size;
-            self.pos -= size;
-            Ok(ans as u32)
-        } else {
-            let mut ans : u32 = 0;
-            for i in 0..size {
-                ans |= try!(self.get_bit()) << i;
-            }
-            Ok(ans)
+        let mut ans : u32 = 0;
+        for i in 0..size {
+            ans |= self.get_bit()? << i;
         }
+        Ok(ans)
     }
 }
 
