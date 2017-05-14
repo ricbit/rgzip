@@ -66,6 +66,8 @@ impl OutputBuffer for CopyBuffer {
 
 impl Drop for CopyBuffer {
     fn drop(&mut self) {
-        self.output.put_data(&self.buffer[0..self.pos]).unwrap();
+        if self.pos > 0 {
+            self.output.put_data(&self.buffer[0..self.pos]).unwrap();
+        }
     }
 }
