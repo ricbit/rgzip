@@ -105,7 +105,7 @@ impl ReceiverBuffer {
         if distance > self.size {
             return Err(GzipError::InvalidDeflateStream);
         }
-        let index : usize = self.pos - distance + 32768;
+        let index : usize = self.pos + 32768 - distance;
         verbose!(2, "window char: ");
         for i in 0..length {
             let data = self.buffer[(index + i as usize) & 32767];
