@@ -65,8 +65,17 @@ impl<'a> WideAdapter<'a> {
 
 impl<'a> ByteSource for WideAdapter<'a> {
     fn get_u8(&mut self) -> GzipResult<u8> {
-        self.pos = 0;
-        self.data.get_u8()
+        if self.pos < 8 {
+            self.pos = 0;
+            self.data.get_u8()
+        } else {
+            self.cur >>= self.pos & 7;
+            self.pos &= 0xF8;
+            let ans = self.cur & 255;
+            self.cur >>= 8;
+            self.pos -= 8;
+            Ok(ans as u8)
+        }
     }
 }
 
